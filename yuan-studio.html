@@ -1,0 +1,1956 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yuan Studio — Content Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F1115;
+    --surface:#171A20;
+    --surface-2:#1D2129;
+    --border:#282D37;
+    --text:#EDEFF3;
+    --muted:#8B92A5;
+    --accent:#FF8A3D;
+    --accent-dim:#7A4B26;
+    --info:#6C8EFF;
+    --success:#4ADE80;
+    --error:#FB7185;
+  }
+  html[data-theme="light"]{
+    --bg:#F4F5F7;
+    --surface:#FFFFFF;
+    --surface-2:#F0F1F4;
+    --border:#E1E3E8;
+    --text:#14161C;
+    --muted:#6B7280;
+    --accent:#FF8A3D;
+    --accent-dim:#FFE1C7;
+    --info:#3B5BDB;
+    --success:#16A34A;
+    --error:#DC2626;
+  }
+  html[data-theme="light"] button.primary{ color:#fff; }
+  html[data-theme="light"] .cal-count{ color:#fff; }
+  html[data-theme="light"] .filter-tabs button.active{ color:#fff; }
+  html[data-theme="light"] #notifBadge{ color:#fff; }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    display:flex;
+    min-height:100vh;
+  }
+  .mono{font-family:'JetBrains Mono', monospace;}
+  .display{font-family:'Space Grotesk', sans-serif;}
+
+  /* Sidebar */
+  aside{
+    width:230px;
+    background:var(--surface);
+    border-right:1px solid var(--border);
+    padding:24px 16px;
+    flex-shrink:0;
+    height:100vh;
+    overflow-y:auto;
+    position:sticky;
+    top:0;
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700; font-size:16px;
+    margin-bottom:32px;
+    padding:0 8px;
+  }
+  .brand .dot{
+    width:10px; height:10px; border-radius:50%;
+    background:var(--accent);
+    box-shadow:0 0 12px var(--accent);
+  }
+  .nav-label{
+    font-size:11px; letter-spacing:0.08em; color:var(--muted);
+    text-transform:uppercase; margin:20px 8px 8px;
+    font-family:'JetBrains Mono', monospace;
+  }
+  nav a{
+    display:flex; align-items:center; gap:10px;
+    padding:9px 10px; border-radius:8px;
+    color:var(--muted); text-decoration:none;
+    font-size:13.5px; font-weight:500;
+    margin-bottom:2px;
+    transition:background .15s, color .15s;
+    cursor:pointer;
+  }
+  nav a:hover{ background:var(--surface-2); color:var(--text); }
+  nav a.active{ background:var(--surface-2); color:var(--text); }
+  nav a.active .ic{ background:var(--accent); }
+  .ic{
+    width:6px; height:6px; border-radius:50%;
+    background:var(--border); flex-shrink:0;
+    transition:background .2s;
+  }
+  nav a.flash{ animation:flashRow .9s ease; }
+  @keyframes flashRow{
+    0%{ background:var(--accent-dim); }
+    100%{ background:transparent; }
+  }
+
+  /* Main */
+  main{ flex:1; padding:28px 36px; overflow-x:hidden; min-width:0; }
+  .view{ display:none; }
+  .view.active{ display:block; }
+  .topbar{
+    display:flex; justify-content:space-between; align-items:flex-start;
+    margin-bottom:24px; gap:16px; flex-wrap:wrap;
+  }
+  h1{ font-family:'Space Grotesk', sans-serif; font-size:26px; font-weight:600; }
+  .sub{ color:var(--muted); font-size:13.5px; margin-top:4px; }
+  .status-pill{
+    display:flex; align-items:center; gap:6px;
+    background:var(--surface); border:1px solid var(--border);
+    padding:6px 12px; border-radius:20px; font-size:12px;
+    color:var(--muted); font-family:'JetBrains Mono', monospace;
+    white-space:nowrap;
+  }
+  .status-pill .dot{ width:6px; height:6px; border-radius:50%; background:var(--success); }
+  .status-pill.warn .dot{ background:var(--error); }
+
+  /* Pulse strip */
+  .pulse-strip{
+    display:flex; align-items:flex-end; gap:3px;
+    height:36px; background:var(--surface);
+    border:1px solid var(--border); border-radius:10px;
+    padding:8px 14px; margin-bottom:28px;
+    overflow:hidden;
+  }
+  .pulse-strip .bar{
+    width:4px; border-radius:2px; background:var(--accent-dim);
+    animation:pulse 2.4s ease-in-out infinite;
+  }
+  .pulse-strip .bar.active{ background:var(--accent); }
+  @keyframes pulse{
+    0%,100%{ height:20%; opacity:.5; }
+    50%{ height:100%; opacity:1; }
+  }
+  .pulse-label{
+    font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--muted);
+    margin-right:12px; white-space:nowrap; align-self:center;
+  }
+
+  /* Platform grid */
+  .grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr));
+    gap:14px; margin-bottom:32px;
+  }
+  .card{
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:12px; padding:16px;
+    transition:box-shadow .2s, border-color .2s;
+  }
+  .card.flash{ animation:flashCard .9s ease; }
+  @keyframes flashCard{
+    0%{ border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-dim); }
+    100%{ border-color:var(--border); box-shadow:none; }
+  }
+  .card-head{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:6px; gap:8px;
+  }
+  .card-title{ font-weight:600; font-size:14.5px; }
+  .card-state{
+    font-size:10.5px; font-family:'JetBrains Mono', monospace;
+    color:var(--muted); background:var(--surface-2);
+    padding:2px 7px; border-radius:5px; cursor:pointer; white-space:nowrap;
+    border:1px solid transparent;
+  }
+  .card-state:hover{ border-color:var(--border); }
+  .card-state.on{ color:var(--success); }
+  .card-state.off{ color:var(--error); }
+  .card-state.running{ color:var(--info); }
+  .card-desc{ font-size:12px; color:var(--muted); line-height:1.5; margin-bottom:14px; min-height:32px; }
+  .stat-row{ display:flex; gap:14px; font-size:12px; margin-bottom:14px; font-family:'JetBrains Mono', monospace; }
+  .stat-row .ok{ color:var(--success); }
+  .stat-row .fail{ color:var(--error); }
+  .btn-row{ display:flex; gap:6px; flex-wrap:wrap; }
+  button{
+    font-family:'Inter', sans-serif; font-weight:500; font-size:12px;
+    padding:6px 10px; border-radius:7px; border:1px solid var(--border);
+    background:var(--surface-2); color:var(--text); cursor:pointer;
+    transition:filter .15s, opacity .15s;
+  }
+  button:hover{ filter:brightness(1.2); }
+  button.primary{ background:var(--accent); border-color:var(--accent); color:#1a0f05; }
+  button:disabled{ opacity:.45; cursor:not-allowed; filter:none; }
+  button.danger-outline{ border-color:var(--error); color:var(--error); background:transparent; }
+  button.ghost{ background:transparent; }
+
+  /* Panel */
+  .panel{
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:12px; padding:20px; margin-bottom:24px;
+  }
+  .panel-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:12px; flex-wrap:wrap; }
+  .panel-head h2{ font-family:'Space Grotesk', sans-serif; font-size:16px; font-weight:600; }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th{
+    text-align:left; color:var(--muted); font-weight:500; font-size:11px;
+    text-transform:uppercase; letter-spacing:.05em; padding:8px 10px;
+    border-bottom:1px solid var(--border); font-family:'JetBrains Mono', monospace;
+    white-space:nowrap;
+  }
+  td{ padding:12px 10px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  tr:last-child td{ border-bottom:none; }
+  .title-cell{ font-weight:500; }
+  .table-wrap{ overflow-x:auto; }
+  .platform-tag{
+    display:inline-flex; align-items:center; gap:5px;
+    font-size:11px; color:var(--muted);
+  }
+  .badge{
+    font-size:11px; font-family:'JetBrains Mono', monospace;
+    padding:3px 9px; border-radius:6px; white-space:nowrap;
+  }
+  .badge.done{ background:rgba(74,222,128,.12); color:var(--success); }
+  .badge.wait{ background:rgba(108,142,255,.12); color:var(--info); }
+  .badge.err{ background:rgba(251,113,133,.12); color:var(--error); }
+  .empty{ text-align:center; padding:32px; color:var(--muted); font-size:13px; }
+
+  /* Card list (content pool / media / text pool) */
+  .item-list{ display:flex; flex-direction:column; gap:10px; }
+  .item-row{
+    display:flex; align-items:center; gap:14px;
+    background:var(--surface-2); border:1px solid var(--border);
+    border-radius:10px; padding:12px 14px;
+  }
+  .item-thumb{
+    width:44px; height:44px; border-radius:8px; flex-shrink:0;
+    background:var(--surface); border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; color:var(--muted); overflow:hidden;
+  }
+  .item-thumb img{ width:100%; height:100%; object-fit:cover; }
+  .item-body{ flex:1; min-width:0; }
+  .item-title{ font-weight:600; font-size:13.5px; margin-bottom:3px; }
+  .item-meta{ font-size:11.5px; color:var(--muted); font-family:'JetBrains Mono', monospace; }
+  .item-text-preview{ font-size:12.5px; color:var(--muted); margin-top:3px; max-width:520px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .item-actions{ display:flex; gap:6px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end; }
+
+  /* Forms */
+  .form-group{ margin-bottom:14px; }
+  .form-group label{ display:block; font-size:12px; color:var(--muted); margin-bottom:6px; font-family:'JetBrains Mono', monospace; }
+  .form-group input[type=text], .form-group input[type=datetime-local], .form-group select, .form-group textarea{
+    width:100%; background:var(--surface-2); border:1px solid var(--border);
+    color:var(--text); border-radius:8px; padding:9px 11px; font-size:13px;
+    font-family:'Inter', sans-serif;
+  }
+  .form-group textarea{ min-height:90px; resize:vertical; }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus{ outline:1px solid var(--accent); }
+  .checkbox-row{ display:flex; gap:14px; flex-wrap:wrap; }
+  .checkbox-row label{ display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text); font-family:'Inter'; margin:0; }
+  .checkbox-inline{ display:flex; align-items:center; gap:8px; }
+  .checkbox-inline label{ font-size:13px; color:var(--text); font-family:'Inter'; display:flex; align-items:center; gap:8px; margin:0; }
+  .hint{ font-size:11.5px; color:var(--muted); margin-top:6px; }
+
+  /* Modal */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(6,7,10,.6);
+    display:none; align-items:center; justify-content:center;
+    z-index:100; padding:20px;
+  }
+  .modal-overlay.open{ display:flex; }
+  .modal-box{
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:14px; width:100%; max-width:460px;
+    max-height:86vh; display:flex; flex-direction:column;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+  }
+  .modal-head{ padding:18px 20px 0; }
+  .modal-head h3{ font-family:'Space Grotesk', sans-serif; font-size:17px; font-weight:600; }
+  .modal-body{ padding:16px 20px; overflow-y:auto; }
+  .modal-foot{ padding:14px 20px 18px; display:flex; justify-content:flex-end; gap:8px; border-top:1px solid var(--border); margin-top:4px; }
+
+  /* Toast */
+  #toastHost{ position:fixed; bottom:20px; right:20px; z-index:200; display:flex; flex-direction:column; gap:8px; }
+  .toast{
+    background:var(--surface-2); border:1px solid var(--border);
+    color:var(--text); padding:10px 16px; border-radius:9px; font-size:13px;
+    box-shadow:0 8px 24px rgba(0,0,0,.4);
+    animation:toastIn .2s ease;
+  }
+  .toast.ok{ border-color:var(--success); }
+  .toast.err{ border-color:var(--error); }
+  @keyframes toastIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:translateY(0); } }
+
+  /* Notification bell */
+  #notifWidget{ position:fixed; top:22px; right:32px; z-index:150; }
+  #notifBell{
+    position:relative; width:38px; height:38px; border-radius:10px;
+    background:var(--surface); border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; cursor:pointer; color:var(--text);
+  }
+  #notifBell:hover{ filter:brightness(1.2); }
+  #notifBadge{
+    position:absolute; top:-5px; right:-5px; min-width:16px; height:16px;
+    background:var(--error); color:#1a0f05; border-radius:8px;
+    font-size:10px; font-family:'JetBrains Mono', monospace; font-weight:600;
+    display:flex; align-items:center; justify-content:center; padding:0 4px;
+  }
+  #notifBadge.hidden{ display:none; }
+  #notifPanel{
+    display:none; position:absolute; top:46px; right:0; width:320px; max-height:400px;
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    box-shadow:0 16px 40px rgba(0,0,0,.5); overflow:hidden; flex-direction:column;
+  }
+  #notifPanel.open{ display:flex; }
+  .notif-head{ display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-bottom:1px solid var(--border); }
+  .notif-head span{ font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:13.5px; }
+  .notif-head button{ font-size:11px; padding:4px 8px; }
+  .notif-list{ overflow-y:auto; max-height:340px; }
+  .notif-item{ display:flex; gap:8px; padding:10px 14px; border-bottom:1px solid var(--border); font-size:12px; align-items:flex-start; }
+  .notif-item:last-child{ border-bottom:none; }
+  .notif-item.unread{ background:rgba(255,138,61,.06); }
+  .notif-item .dotmark{ width:6px; height:6px; border-radius:50%; background:var(--accent); margin-top:5px; flex-shrink:0; }
+  .notif-item .dotmark.read{ background:transparent; }
+  .notif-item .notif-body{ flex:1; }
+  .notif-item .notif-time{ color:var(--muted); font-family:'JetBrains Mono', monospace; font-size:10.5px; margin-top:3px; }
+  .notif-item .notif-x{ cursor:pointer; color:var(--muted); font-size:14px; flex-shrink:0; }
+  .notif-item .notif-x:hover{ color:var(--text); }
+
+  /* Calendar */
+  .cal-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .cal-head .cal-title{ font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:14.5px; }
+  .cal-nav{ display:flex; gap:6px; }
+  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+  .cal-dow{ text-align:center; font-size:10.5px; color:var(--muted); font-family:'JetBrains Mono', monospace; padding-bottom:4px; }
+  .cal-cell{
+    aspect-ratio:1/1; border-radius:8px; border:1px solid var(--border);
+    background:var(--surface-2); padding:6px; cursor:pointer;
+    display:flex; flex-direction:column; justify-content:space-between;
+    font-size:11.5px; color:var(--muted); position:relative; min-height:52px;
+  }
+  .cal-cell.empty{ background:transparent; border-color:transparent; cursor:default; }
+  .cal-cell.today{ border-color:var(--accent); }
+  .cal-cell.selected{ background:var(--accent-dim); color:var(--text); }
+  .cal-cell .cal-daynum{ font-family:'JetBrains Mono', monospace; }
+  .cal-cell .cal-count{
+    align-self:flex-end; background:var(--accent); color:#1a0f05; font-weight:600;
+    border-radius:6px; padding:1px 6px; font-size:10px; font-family:'JetBrains Mono', monospace;
+  }
+
+  /* Pool filter tabs */
+  .filter-tabs{ display:flex; gap:6px; margin-bottom:14px; }
+  .filter-tabs button{ background:transparent; }
+  .filter-tabs button.active{ background:var(--accent); border-color:var(--accent); color:#1a0f05; }
+  .badge.draft{ background:rgba(139,146,165,.16); color:var(--muted); }
+  .badge.ready{ background:rgba(74,222,128,.12); color:var(--success); }
+  .badge.template{ background:rgba(108,142,255,.12); color:var(--info); margin-left:6px; }
+
+  /* Search inputs */
+  .search-input{
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:7px 11px; font-size:12.5px; font-family:'Inter', sans-serif;
+    width:200px;
+  }
+  .search-input:focus{ outline:1px solid var(--accent); }
+  .panel-head-actions{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+
+  /* Performance chart */
+  .chart-row{ display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+  .chart-row:last-child{ margin-bottom:0; }
+  .chart-label{ width:78px; flex-shrink:0; font-size:12.5px; font-weight:500; }
+  .chart-bars{ flex:1; display:flex; flex-direction:column; gap:4px; }
+  .chart-bar-track{ display:flex; align-items:center; gap:8px; }
+  .chart-bar-track .track-bg{ flex:1; height:8px; background:var(--surface-2); border-radius:4px; overflow:hidden; }
+  .chart-bar-track .track-fill{ height:100%; border-radius:4px; transition:width .3s; }
+  .chart-bar-track .track-fill.ok{ background:var(--success); }
+  .chart-bar-track .track-fill.fail{ background:var(--error); }
+  .chart-bar-track .track-num{ width:26px; font-size:11px; font-family:'JetBrains Mono', monospace; color:var(--muted); text-align:right; }
+
+  /* Media tag */
+  .tag-input{
+    background:var(--surface); border:1px solid var(--border); color:var(--muted);
+    border-radius:6px; padding:4px 8px; font-size:11px; font-family:'JetBrains Mono', monospace;
+    width:110px;
+  }
+  .tag-input:focus{ outline:1px solid var(--accent); color:var(--text); }
+
+  /* Platform preview mockups */
+  .preview-grid{ display:flex; flex-direction:column; gap:18px; }
+  .preview-block{ }
+  .preview-block-label{ font-size:11px; font-family:'JetBrains Mono', monospace; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px; }
+  .mock-card{ background:var(--surface-2); border:1px solid var(--border); border-radius:10px; overflow:hidden; max-width:280px; }
+  .mock-head{ display:flex; align-items:center; gap:8px; padding:8px 10px; }
+  .mock-avatar{ width:26px; height:26px; border-radius:50%; background:var(--border); flex-shrink:0; }
+  .mock-name{ width:70px; height:8px; border-radius:4px; background:var(--border); }
+  .mock-media{ width:100%; background:var(--bg); display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:26px; position:relative; overflow:hidden; }
+  .mock-media img{ width:100%; height:100%; object-fit:cover; }
+  .mock-media.ratio-square{ aspect-ratio:1/1; }
+  .mock-media.ratio-vertical{ aspect-ratio:9/16; }
+  .mock-media.ratio-wide{ aspect-ratio:16/9; }
+  .mock-caption{ padding:10px; font-size:12px; line-height:1.5; color:var(--text); }
+  .mock-caption .mock-title{ font-weight:600; margin-bottom:4px; }
+  .mock-icons{ display:flex; gap:12px; padding:0 10px 10px; color:var(--muted); font-size:13px; }
+  .mock-overlay-caption{
+    position:absolute; bottom:0; left:0; right:0; padding:10px 34px 10px 10px;
+    background:linear-gradient(to top, rgba(0,0,0,.75), transparent);
+    color:#fff; font-size:11.5px; line-height:1.4;
+  }
+  .mock-side-icons{ position:absolute; right:8px; bottom:10px; display:flex; flex-direction:column; gap:10px; color:#fff; font-size:16px; }
+  .mock-play{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:32px; color:rgba(255,255,255,.85); }
+</style>
+</head>
+<body>
+
+<div id="notifWidget">
+  <div id="notifBell" data-action="toggle-notif-panel">
+    🔔<span id="notifBadge" class="hidden">0</span>
+  </div>
+  <div id="notifPanel">
+    <div class="notif-head">
+      <span>Notifikasi</span>
+      <button data-action="mark-all-read">Tandai semua dibaca</button>
+    </div>
+    <div class="notif-list" id="notifList"></div>
+  </div>
+</div>
+
+<aside>
+  <div class="brand"><span class="dot"></span> Yuan Studio</div>
+
+  <div class="nav-label">Utama</div>
+  <nav>
+    <a data-view="dashboard"><span class="ic"></span> Dashboard</a>
+    <a data-view="activity"><span class="ic"></span> Riwayat Aktivitas</a>
+  </nav>
+
+  <div class="nav-label">Content Center</div>
+  <nav>
+    <a data-view="content-pool"><span class="ic"></span> Content Pool</a>
+    <a data-view="media-manual"><span class="ic"></span> Media Manual</a>
+    <a data-view="text-pool"><span class="ic"></span> Text Pool</a>
+    <a data-view="schedule"><span class="ic"></span> Jadwal Posting</a>
+  </nav>
+
+  <div class="nav-label">Akun Terhubung</div>
+  <nav id="accountsNav">
+    <a data-platform="youtube"><span class="ic"></span> YouTube</a>
+    <a data-platform="tiktok"><span class="ic"></span> TikTok</a>
+    <a data-platform="instagram"><span class="ic"></span> Instagram</a>
+    <a data-platform="facebook"><span class="ic"></span> Facebook</a>
+    <a data-platform="threads"><span class="ic"></span> Threads</a>
+  </nav>
+
+  <div class="nav-label">Sistem</div>
+  <nav>
+    <a data-view="settings"><span class="ic"></span> Pengaturan</a>
+  </nav>
+</aside>
+
+<main>
+
+  <!-- ===== DASHBOARD ===== -->
+  <section class="view" id="view-dashboard">
+    <div class="topbar">
+      <div>
+        <h1>Dashboard</h1>
+        <div class="sub">Ringkasan distribusi konten milikmu ke semua akun</div>
+      </div>
+      <div class="status-pill" id="statusPill"><span class="dot"></span> Semua akun terhubung</div>
+    </div>
+
+    <div class="pulse-strip" id="pulseStrip">
+      <span class="pulse-label">AKTIVITAS LIVE</span>
+    </div>
+
+    <div class="grid" id="platformGrid"></div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Grafik Performa Platform</h2></div>
+      <div id="perfChart"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Rekomendasi Waktu Posting</h2></div>
+      <div id="bestTimeList"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Antrian Konten</h2>
+        <div class="panel-head-actions">
+          <input type="text" class="search-input" id="queueSearch" placeholder="Cari judul/platform...">
+          <button class="primary" data-action="open-add-queue">+ Tambah Konten</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Judul</th><th>Platform Tujuan</th><th>Status</th><th>Dijadwalkan</th><th>Aksi</th></tr>
+          </thead>
+          <tbody id="queueBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== RIWAYAT AKTIVITAS ===== -->
+  <section class="view" id="view-activity">
+    <div class="topbar">
+      <div>
+        <h1>Riwayat Aktivitas</h1>
+        <div class="sub">Log semua kejadian di Yuan Studio</div>
+      </div>
+      <button data-action="clear-activity">Bersihkan Riwayat</button>
+    </div>
+    <div class="panel">
+      <input type="text" class="search-input" id="activitySearch" placeholder="Cari aktivitas..." style="margin-bottom:14px; width:100%;">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Waktu</th><th>Aktivitas</th><th>Status</th></tr></thead>
+          <tbody id="activityBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CONTENT POOL ===== -->
+  <section class="view" id="view-content-pool">
+    <div class="topbar">
+      <div>
+        <h1>Content Pool</h1>
+        <div class="sub">Gabungan media + teks yang siap dijadwalkan</div>
+      </div>
+      <button class="primary" data-action="open-add-pool">+ Tambah Konten</button>
+    </div>
+    <div class="panel">
+      <div class="filter-tabs" id="poolFilterTabs">
+        <button class="active" data-action="pool-filter" data-filter="all">Semua</button>
+        <button data-action="pool-filter" data-filter="draft">Draft</button>
+        <button data-action="pool-filter" data-filter="ready">Ready</button>
+      </div>
+      <div class="item-list" id="poolList"></div>
+    </div>
+  </section>
+
+  <!-- ===== MEDIA MANUAL ===== -->
+  <section class="view" id="view-media-manual">
+    <div class="topbar">
+      <div>
+        <h1>Media Manual</h1>
+        <div class="sub">Upload media dari perangkat kamu untuk dipakai di konten</div>
+      </div>
+      <button class="primary" data-action="trigger-media-upload">+ Tambah Media</button>
+      <input type="file" id="mediaFileInput" multiple hidden accept="image/*,video/*">
+    </div>
+    <div class="panel">
+      <div class="filter-tabs" id="mediaFilterTabs"></div>
+      <div class="item-list" id="mediaList"></div>
+    </div>
+  </section>
+
+  <!-- ===== TEXT POOL ===== -->
+  <section class="view" id="view-text-pool">
+    <div class="topbar">
+      <div>
+        <h1>Text Pool</h1>
+        <div class="sub">Simpan caption & teks yang siap dipakai ulang</div>
+      </div>
+      <button class="primary" data-action="open-add-text">+ Tambah Teks</button>
+    </div>
+    <div class="panel">
+      <div class="item-list" id="textList"></div>
+    </div>
+  </section>
+
+  <!-- ===== JADWAL POSTING ===== -->
+  <section class="view" id="view-schedule">
+    <div class="topbar">
+      <div>
+        <h1>Jadwal Posting</h1>
+        <div class="sub">Konten yang masih menunggu jadwal tayang</div>
+      </div>
+      <div class="panel-head-actions">
+        <button class="primary" data-action="open-add-queue">+ Tambah Jadwal</button>
+        <button data-action="open-bulk-schedule">+ Bulk Jadwal</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="cal-head">
+        <span class="cal-title" id="calTitle"></span>
+        <div class="cal-nav">
+          <button data-action="cal-prev">‹</button>
+          <button data-action="cal-today">Hari ini</button>
+          <button data-action="cal-next">›</button>
+        </div>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <h2 id="scheduleListTitle">Semua Jadwal</h2>
+        <button data-action="cal-clear-filter" id="calClearBtn" style="display:none;">Tampilkan Semua</button>
+      </div>
+      <div class="item-list" id="scheduleList"></div>
+    </div>
+  </section>
+
+  <!-- ===== PENGATURAN ===== -->
+  <section class="view" id="view-settings">
+    <div class="topbar">
+      <div>
+        <h1>Pengaturan</h1>
+        <div class="sub">Preferensi & pengelolaan akun Yuan Studio</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Preferensi</h2></div>
+      <div class="form-group">
+        <label>Zona Waktu</label>
+        <select id="set-timezone">
+          <option value="WIB (GMT+7)">WIB (GMT+7)</option>
+          <option value="WITA (GMT+8)">WITA (GMT+8)</option>
+          <option value="WIT (GMT+9)">WIT (GMT+9)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Tema</label>
+        <select id="set-theme">
+          <option value="dark">Gelap</option>
+          <option value="light">Terang</option>
+        </select>
+      </div>
+      <div class="form-group checkbox-inline">
+        <label><input type="checkbox" id="set-notif"> Notifikasi aktivitas</label>
+      </div>
+      <div class="form-group checkbox-inline">
+        <label><input type="checkbox" id="set-autoretry"> Auto-retry saat posting gagal</label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Kelola Akun</h2></div>
+      <div class="grid" id="settingsAccountGrid"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Data</h2></div>
+      <div class="sub">Reset akan menghapus semua data (antrian, pool, media, teks, riwayat) dan mengembalikan Yuan Studio ke kondisi awal.</div>
+      <div class="btn-row" style="margin-top:12px;">
+        <button data-action="export-data">Export Data (.json)</button>
+        <button data-action="trigger-import">Import Data</button>
+        <button class="danger-outline" data-action="open-reset">Reset Semua Data</button>
+      </div>
+      <input type="file" id="importFileInput" accept="application/json" hidden>
+    </div>
+  </section>
+
+</main>
+
+<!-- Generic modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <div class="modal-head"><h3 id="modalTitle"></h3></div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot" id="modalFoot"></div>
+  </div>
+</div>
+
+<div id="toastHost"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- Storage layer (window.storage with in-memory fallback) ---------------- */
+  const memoryStore = {};
+  const hasRealStorage = typeof window !== 'undefined' && window.storage && typeof window.storage.get === 'function';
+  const Store = {
+    async get(key){
+      if(hasRealStorage){
+        try{ const r = await window.storage.get(key); return r ? r.value : null; }
+        catch(e){ return null; }
+      }
+      return Object.prototype.hasOwnProperty.call(memoryStore, key) ? memoryStore[key] : null;
+    },
+    async set(key, value){
+      if(hasRealStorage){
+        try{ await window.storage.set(key, value); return true; }
+        catch(e){ return false; }
+      }
+      memoryStore[key] = value;
+      return true;
+    }
+  };
+  const STATE_KEY = 'yuanstudio-state';
+
+  /* ---------------- Default state ---------------- */
+  function defaultState(){
+    return {
+      platforms:{
+        youtube:  { name:'YouTube',   connected:true, running:false, success:4, fail:0, desc:'Upload video & Shorts ke channel kamu.' },
+        tiktok:   { name:'TikTok',    connected:true, running:false, success:2, fail:0, desc:'Upload klip vertikal ke akun TikTok kamu.' },
+        instagram:{ name:'Instagram', connected:true, running:false, success:1, fail:0, desc:'Distribusi reels & postingan ke akun kamu.' },
+        facebook: { name:'Facebook',  connected:true, running:false, success:3, fail:0, desc:'Posting ke halaman/grup Facebook kamu.' },
+        threads:  { name:'Threads',   connected:true, running:false, success:0, fail:0, desc:'Posting teks & media ke akun Threads kamu.' }
+      },
+      queue:[
+        { id:'q1', title:'Behind the scenes — packing order', platforms:['Instagram','TikTok'], status:'done', scheduled:'27/8, 09:00', scheduledISO:'2026-08-27T09:00' },
+        { id:'q2', title:'Review produk baru minggu ini', platforms:['YouTube','Facebook'], status:'wait', scheduled:'27/8, 18:00', scheduledISO:'2026-08-27T18:00' },
+        { id:'q3', title:'Testimoni pelanggan', platforms:['Threads'], status:'err', scheduled:'26/8, 20:15', scheduledISO:'2026-08-26T20:15', note:'Token expired' }
+      ],
+      activity:[
+        { id:'a1', time:'26/8, 20:15', text:'Threads: gagal posting "Testimoni pelanggan" — token expired', level:'err' },
+        { id:'a2', time:'27/8, 09:00', text:'Instagram, TikTok: berhasil posting "Behind the scenes — packing order"', level:'ok' }
+      ],
+      notifications:[
+        { id:'n1', time:'26/8, 20:15', text:'Threads: gagal posting "Testimoni pelanggan" — token expired', level:'err', read:false }
+      ],
+      postLog:[
+        { platform:'Instagram', hour:9, result:'ok', ts:0 },
+        { platform:'TikTok', hour:9, result:'ok', ts:0 },
+        { platform:'Threads', hour:20, result:'err', ts:0 }
+      ],
+      contentPool:[],
+      media:[],
+      text:[],
+      settings:{ timezone:'WIB (GMT+7)', notif:true, autoRetry:false, theme:'dark' }
+    };
+  }
+
+  let state = defaultState();
+
+  function uid(prefix){ return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  async function loadState(){
+    const raw = await Store.get(STATE_KEY);
+    if(raw){
+      try{
+        const parsed = JSON.parse(raw);
+        const def = defaultState();
+        state = Object.assign({}, def, parsed);
+        state.platforms = Object.assign({}, def.platforms, parsed.platforms || {});
+        state.settings = Object.assign({}, def.settings, parsed.settings || {});
+        state.queue = parsed.queue || def.queue;
+        state.activity = parsed.activity || def.activity;
+        state.notifications = parsed.notifications || def.notifications;
+        state.postLog = parsed.postLog || def.postLog;
+        state.contentPool = parsed.contentPool || [];
+        state.media = (parsed.media || []).map(m => { const c = Object.assign({}, m); delete c.previewUrl; return c; });
+        state.text = parsed.text || [];
+      }catch(e){ state = defaultState(); }
+    }
+  }
+
+  async function saveState(){
+    const toSave = Object.assign({}, state, {
+      media: state.media.map(m => { const c = Object.assign({}, m); delete c.previewUrl; return c; })
+    });
+    await Store.set(STATE_KEY, JSON.stringify(toSave));
+  }
+
+  const PLATFORM_ORDER = ['youtube','tiktok','instagram','facebook','threads'];
+
+  /* ---------------- Toast ---------------- */
+  function toast(msg, type){
+    const host = document.getElementById('toastHost');
+    const el = document.createElement('div');
+    el.className = 'toast' + (type ? ' ' + type : '');
+    el.textContent = msg;
+    host.appendChild(el);
+    setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, 2400);
+  }
+
+  /* ---------------- Modal ---------------- */
+  function openModal(title, bodyHtml, footHtml){
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalBody').innerHTML = bodyHtml;
+    document.getElementById('modalFoot').innerHTML = footHtml;
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+  function closeModal(){
+    document.getElementById('modalOverlay').classList.remove('open');
+  }
+  document.getElementById('modalOverlay').addEventListener('click', (e)=>{
+    if(e.target.id === 'modalOverlay') closeModal();
+  });
+
+  /* ---------------- Activity & notifications ---------------- */
+  function pushNotification(text, level, time){
+    state.notifications.unshift({ id:uid('n'), time: time || nowLabel(), text, level: level || 'info', read:false });
+    if(state.notifications.length > 100) state.notifications.length = 100;
+  }
+
+  function nowLabel(){
+    const now = new Date();
+    return now.toLocaleDateString('id-ID',{day:'numeric',month:'numeric'}) + ', ' + now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  function addActivity(text, level){
+    const time = nowLabel();
+    state.activity.unshift({ id:uid('a'), time, text, level: level || 'info' });
+    if(state.activity.length > 200) state.activity.length = 200;
+    if(level === 'err'){
+      pushNotification(text, level, time);
+    }
+  }
+
+  /* ---------------- Module-level UI state (not persisted) ---------------- */
+  let poolFilter = 'all';
+  let calCursor = new Date();
+  let calSelectedDate = null; // 'YYYY-MM-DD' or null
+  let queueSearchTerm = '';
+  let activitySearchTerm = '';
+  let mediaFilterTag = 'all';
+
+  function pad2(n){ return String(n).padStart(2,'0'); }
+  function isoDateOnly(iso){
+    if(!iso) return null;
+    const d = new Date(iso);
+    if(isNaN(d.getTime())) return null;
+    return d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate());
+  }
+
+  /* ---------------- Reminder H-1 jam ---------------- */
+  async function checkReminders(){
+    const now = Date.now();
+    let changed = false;
+    state.queue.forEach(item=>{
+      if(item.status !== 'wait' || item.reminded || !item.scheduledISO) return;
+      const target = new Date(item.scheduledISO).getTime();
+      if(isNaN(target)) return;
+      const diffMin = Math.round((target - now) / 60000);
+      if(diffMin <= 60 && diffMin > -15){
+        item.reminded = true;
+        changed = true;
+        const label = diffMin > 0 ? `${diffMin} menit lagi` : 'sekarang';
+        const text = `Reminder: "${item.title}" dijadwalkan tayang ${label} (${item.scheduled})`;
+        pushNotification(text, 'info');
+        addActivity(text, 'info');
+      }
+    });
+    if(changed){
+      await saveState();
+      renderNotifications();
+      renderActivity();
+    }
+  }
+
+  /* ---------------- Router ---------------- */
+  function navigate(view){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    const target = document.getElementById('view-' + view);
+    if(target) target.classList.add('active');
+    document.querySelectorAll('nav a[data-view]').forEach(a=>{
+      a.classList.toggle('active', a.dataset.view === view);
+    });
+    window.scrollTo({top:0});
+  }
+
+  /* ---------------- Renderers ---------------- */
+  function renderStatusPill(){
+    const total = PLATFORM_ORDER.length;
+    const connected = PLATFORM_ORDER.filter(k=>state.platforms[k].connected).length;
+    const pill = document.getElementById('statusPill');
+    if(connected === total){
+      pill.className = 'status-pill';
+      pill.innerHTML = '<span class="dot"></span> Semua akun terhubung';
+    } else {
+      pill.className = 'status-pill warn';
+      pill.innerHTML = '<span class="dot"></span> ' + connected + '/' + total + ' akun terhubung';
+    }
+  }
+
+  function platformCardHtml(key, forSettings){
+    const p = state.platforms[key];
+    let stateLabel = 'Idle', stateClass = 'off';
+    if(!p.connected){ stateLabel = 'Diputus'; stateClass = 'off'; }
+    else if(p.running){ stateLabel = 'Mengunggah…'; stateClass = 'running'; }
+    else { stateLabel = 'Terhubung'; stateClass = 'on'; }
+    return `
+      <div class="card" data-card-platform="${key}">
+        <div class="card-head">
+          <span class="card-title">${p.name}</span>
+          <span class="card-state ${stateClass}" data-action="toggle-connect" data-platform="${key}" title="Klik untuk ${p.connected ? 'putuskan' : 'hubungkan'} akun">${stateLabel}</span>
+        </div>
+        <div class="card-desc">${p.desc}</div>
+        <div class="stat-row"><span class="ok">✓ Sukses: ${p.success}</span><span class="fail">✕ Gagal: ${p.fail}</span></div>
+        <div class="btn-row">
+          <button class="primary" data-action="start-platform" data-platform="${key}" ${(!p.connected || p.running) ? 'disabled' : ''}>${p.running ? 'Mengunggah…' : 'Start'}</button>
+          <button data-action="detail-platform" data-platform="${key}">Detail</button>
+        </div>
+      </div>`;
+  }
+
+  function renderPlatforms(){
+    document.getElementById('platformGrid').innerHTML = PLATFORM_ORDER.map(k=>platformCardHtml(k)).join('');
+    document.getElementById('settingsAccountGrid').innerHTML = PLATFORM_ORDER.map(k=>platformCardHtml(k)).join('');
+    renderStatusPill();
+    renderAccountsSidebar();
+    renderPerfChart();
+    renderBestTime();
+  }
+
+  function logPost(platformName, result){
+    state.postLog.unshift({ platform: platformName, hour: new Date().getHours(), result, ts: Date.now() });
+    if(state.postLog.length > 500) state.postLog.length = 500;
+  }
+
+  function computeBestTime(platformName){
+    const entries = state.postLog.filter(l=>l.platform === platformName);
+    if(!entries.length) return null;
+    const byHour = {};
+    entries.forEach(e=>{
+      if(!byHour[e.hour]) byHour[e.hour] = { ok:0, total:0 };
+      byHour[e.hour].total++;
+      if(e.result === 'ok') byHour[e.hour].ok++;
+    });
+    let best = null;
+    Object.keys(byHour).forEach(hourStr=>{
+      const hour = parseInt(hourStr, 10);
+      const stat = byHour[hour];
+      const rate = stat.ok / stat.total;
+      if(!best || rate > best.rate || (rate === best.rate && stat.total > best.total)){
+        best = { hour, rate, total: stat.total };
+      }
+    });
+    return best;
+  }
+
+  function renderBestTime(){
+    const host = document.getElementById('bestTimeList');
+    if(!host) return;
+    host.innerHTML = PLATFORM_ORDER.map(k=>{
+      const p = state.platforms[k];
+      const best = computeBestTime(p.name);
+      const info = best
+        ? `Jam <strong class="mono">${pad2(best.hour)}:00</strong> · ${Math.round(best.rate*100)}% sukses dari ${best.total} data`
+        : 'Belum cukup data histori posting';
+      return `<div class="chart-row" style="align-items:center;">
+        <div class="chart-label">${p.name}</div>
+        <div style="font-size:12.5px; color:var(--muted);">${info}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderPerfChart(){
+    const host = document.getElementById('perfChart');
+    if(!host) return;
+    const maxVal = Math.max(1, ...PLATFORM_ORDER.map(k=>Math.max(state.platforms[k].success, state.platforms[k].fail)));
+    host.innerHTML = PLATFORM_ORDER.map(k=>{
+      const p = state.platforms[k];
+      const okPct = Math.round((p.success / maxVal) * 100);
+      const failPct = Math.round((p.fail / maxVal) * 100);
+      return `
+      <div class="chart-row">
+        <div class="chart-label">${p.name}</div>
+        <div class="chart-bars">
+          <div class="chart-bar-track">
+            <div class="track-bg"><div class="track-fill ok" style="width:${okPct}%"></div></div>
+            <div class="track-num">${p.success}</div>
+          </div>
+          <div class="chart-bar-track">
+            <div class="track-bg"><div class="track-fill fail" style="width:${failPct}%"></div></div>
+            <div class="track-num">${p.fail}</div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderAccountsSidebar(){
+    document.querySelectorAll('#accountsNav a[data-platform]').forEach(a=>{
+      const key = a.dataset.platform;
+      const p = state.platforms[key];
+      const ic = a.querySelector('.ic');
+      ic.style.background = p.connected ? 'var(--success)' : 'var(--error)';
+    });
+  }
+
+  function renderNotifications(){
+    const unread = state.notifications.filter(n=>!n.read).length;
+    const badge = document.getElementById('notifBadge');
+    badge.textContent = unread;
+    badge.classList.toggle('hidden', unread === 0);
+    const list = document.getElementById('notifList');
+    if(!state.notifications.length){
+      list.innerHTML = '<div class="empty" style="padding:20px;">Belum ada notifikasi.</div>';
+      return;
+    }
+    list.innerHTML = state.notifications.slice(0,30).map(n=>`
+      <div class="notif-item ${n.read ? '' : 'unread'}" data-action="notif-mark-read" data-id="${n.id}">
+        <span class="dotmark ${n.read ? 'read' : ''}"></span>
+        <div class="notif-body">
+          <div>${escapeHtml(n.text)}</div>
+          <div class="notif-time">${n.time}</div>
+        </div>
+        <span class="notif-x" data-action="notif-dismiss" data-id="${n.id}">✕</span>
+      </div>`).join('');
+  }
+
+  function badgeFor(status){
+    if(status === 'done') return '<span class="badge done">Terposting</span>';
+    if(status === 'err') return '<span class="badge err">Gagal' + '</span>';
+    return '<span class="badge wait">Menunggu Jadwal</span>';
+  }
+
+  function renderQueue(){
+    const body = document.getElementById('queueBody');
+    const term = queueSearchTerm.trim().toLowerCase();
+    const items = term
+      ? state.queue.filter(q => q.title.toLowerCase().includes(term) || q.platforms.join(', ').toLowerCase().includes(term))
+      : state.queue;
+    if(!items.length){
+      body.innerHTML = '<tr><td colspan="6" class="empty">' + (state.queue.length ? 'Gak ada yang cocok sama pencarian.' : 'Belum ada konten di antrian.') + '</td></tr>';
+      return;
+    }
+    body.innerHTML = items.map((item,i)=>`
+      <tr>
+        <td class="mono">${i+1}</td>
+        <td class="title-cell">${escapeHtml(item.title)}${item.note ? '<div class="hint">' + escapeHtml(item.note) + '</div>' : ''}</td>
+        <td class="platform-tag">${item.platforms.join(', ')}</td>
+        <td>${badgeFor(item.status)}</td>
+        <td class="mono">${item.scheduled}</td>
+        <td>
+          <div class="btn-row">
+            ${item.status !== 'done' ? `<button class="primary" data-action="queue-post" data-id="${item.id}">Posting</button>` : ''}
+            <button data-action="preview-queue" data-id="${item.id}">Preview</button>
+            <button data-action="queue-delete" data-id="${item.id}">Hapus</button>
+          </div>
+        </td>
+      </tr>`).join('');
+  }
+
+  function renderActivity(){
+    const body = document.getElementById('activityBody');
+    const term = activitySearchTerm.trim().toLowerCase();
+    const items = term ? state.activity.filter(a=>a.text.toLowerCase().includes(term)) : state.activity;
+    if(!items.length){
+      body.innerHTML = '<tr><td colspan="3" class="empty">' + (state.activity.length ? 'Gak ada yang cocok sama pencarian.' : 'Belum ada aktivitas.') + '</td></tr>';
+      return;
+    }
+    body.innerHTML = items.map(a=>`
+      <tr>
+        <td class="mono">${a.time}</td>
+        <td>${escapeHtml(a.text)}</td>
+        <td>${a.level === 'ok' ? '<span class="badge done">Sukses</span>' : a.level === 'err' ? '<span class="badge err">Gagal</span>' : '<span class="badge wait">Info</span>'}</td>
+      </tr>`).join('');
+  }
+
+  function renderPool(){
+    const list = document.getElementById('poolList');
+    document.querySelectorAll('#poolFilterTabs button').forEach(b=>{
+      b.classList.toggle('active', b.dataset.filter === poolFilter);
+    });
+    const items = state.contentPool.filter(item=>{
+      if(poolFilter === 'all') return true;
+      return (item.status || 'draft') === poolFilter;
+    });
+    if(!items.length){
+      list.innerHTML = '<div class="empty">' + (state.contentPool.length ? 'Tidak ada konten di filter ini.' : 'Belum ada konten di pool. Tambahkan lewat tombol di atas — gabungkan media dari Media Manual dan teks dari Text Pool.') + '</div>';
+      return;
+    }
+    list.innerHTML = items.map(item=>{
+      const isReady = (item.status || 'draft') === 'ready';
+      const media = item.mediaId ? state.media.find(m=>m.id === item.mediaId) : null;
+      const thumbHtml = media && media.previewUrl
+        ? `<img src="${media.previewUrl}" alt="">`
+        : (media ? (media.type && media.type.startsWith('video') ? '🎬' : '🖼') : '🗂');
+      return `
+      <div class="item-row">
+        <div class="item-thumb">${thumbHtml}</div>
+        <div class="item-body">
+          <div class="item-title">${escapeHtml(item.title)} <span class="badge ${isReady ? 'ready' : 'draft'}">${isReady ? 'Ready' : 'Draft'}</span></div>
+          <div class="item-meta">${item.platforms.join(', ') || 'Belum ada platform'}</div>
+        </div>
+        <div class="item-actions">
+          ${isReady
+            ? `<button class="primary" data-action="pool-schedule" data-id="${item.id}">Jadwalkan</button><button data-action="pool-toggle-status" data-id="${item.id}">Jadikan Draft</button>`
+            : `<button class="primary" data-action="pool-toggle-status" data-id="${item.id}">Tandai Ready</button>`}
+          <button data-action="preview-pool" data-id="${item.id}">Preview</button>
+          <button data-action="pool-delete" data-id="${item.id}">Hapus</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function setPoolFilter(filter){
+    poolFilter = filter;
+    renderPool();
+  }
+
+  async function poolToggleStatus(id){
+    const item = state.contentPool.find(p=>p.id === id);
+    if(!item) return;
+    item.status = (item.status || 'draft') === 'draft' ? 'ready' : 'draft';
+    addActivity(`Konten "${item.title}" ditandai ${item.status === 'ready' ? 'Ready' : 'Draft'}`, 'info');
+    await saveState();
+    renderPool(); renderActivity();
+    toast(item.status === 'ready' ? 'Ditandai Ready sob' : 'Dibalikin ke Draft sob', 'ok');
+  }
+
+  function renderMedia(){
+    const list = document.getElementById('mediaList');
+    const tabsHost = document.getElementById('mediaFilterTabs');
+    const tags = [...new Set(state.media.map(m=>m.tag).filter(Boolean))];
+    tabsHost.innerHTML = ['all', ...tags].map(t=>`
+      <button class="${mediaFilterTag === t ? 'active' : ''}" data-action="media-filter" data-tag="${escapeHtml(t)}">${t === 'all' ? 'Semua' : escapeHtml(t)}</button>
+    `).join('');
+
+    const items = mediaFilterTag === 'all' ? state.media : state.media.filter(m=>m.tag === mediaFilterTag);
+    if(!items.length){
+      list.innerHTML = '<div class="empty">' + (state.media.length ? 'Gak ada media di kategori ini.' : 'Belum ada media. Klik "+ Tambah Media" untuk upload dari perangkat kamu.') + '</div>';
+      return;
+    }
+    list.innerHTML = items.map(m=>`
+      <div class="item-row">
+        <div class="item-thumb">${m.previewUrl ? `<img src="${m.previewUrl}" alt="">` : (m.type && m.type.startsWith('video') ? '🎬' : '🖼')}</div>
+        <div class="item-body">
+          <div class="item-title">${escapeHtml(m.name)}</div>
+          <div class="item-meta">${m.type || 'file'} · ${formatBytes(m.size)}</div>
+        </div>
+        <input type="text" class="tag-input" data-change-action="media-set-tag" data-id="${m.id}" value="${escapeHtml(m.tag || '')}" placeholder="Kategori...">
+        <div class="item-actions">
+          <button data-action="media-delete" data-id="${m.id}">Hapus</button>
+        </div>
+      </div>`).join('');
+  }
+
+  function setMediaFilter(tag){
+    mediaFilterTag = tag;
+    renderMedia();
+  }
+
+  async function updateMediaTag(id, value){
+    const item = state.media.find(m=>m.id === id);
+    if(!item) return;
+    item.tag = value.trim();
+    await saveState();
+    renderMedia();
+  }
+
+  function extractVars(str){
+    const matches = String(str || '').match(/\{(\w+)\}/g) || [];
+    return [...new Set(matches.map(m=>m.slice(1,-1)))];
+  }
+
+  function renderTextPool(){
+    const list = document.getElementById('textList');
+    if(!state.text.length){
+      list.innerHTML = '<div class="empty">Belum ada teks tersimpan. Tambahkan caption yang sering kamu pakai. Pakai <span class="mono">{judul}</span> atau <span class="mono">{tanggal}</span> buat bikin template.</div>';
+      return;
+    }
+    list.innerHTML = state.text.map(t=>{
+      const vars = extractVars(t.body);
+      return `
+      <div class="item-row">
+        <div class="item-thumb">✎</div>
+        <div class="item-body">
+          <div class="item-title">${escapeHtml(t.title)}${vars.length ? `<span class="badge template">Template · ${vars.join(', ')}</span>` : ''}</div>
+          <div class="item-text-preview">${escapeHtml(t.body)}</div>
+        </div>
+        <div class="item-actions">
+          <button data-action="text-copy" data-id="${t.id}">${vars.length ? 'Pakai & Salin' : 'Salin'}</button>
+          <button data-action="text-edit" data-id="${t.id}">Edit</button>
+          <button data-action="text-delete" data-id="${t.id}">Hapus</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderSchedule(){
+    const list = document.getElementById('scheduleList');
+    const titleEl = document.getElementById('scheduleListTitle');
+    const clearBtn = document.getElementById('calClearBtn');
+    let waiting = state.queue.filter(q=>q.status === 'wait');
+    if(calSelectedDate){
+      waiting = waiting.filter(q=>isoDateOnly(q.scheduledISO) === calSelectedDate);
+      const d = new Date(calSelectedDate + 'T00:00');
+      titleEl.textContent = 'Jadwal ' + d.toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
+      clearBtn.style.display = '';
+    } else {
+      titleEl.textContent = 'Semua Jadwal';
+      clearBtn.style.display = 'none';
+    }
+    if(!waiting.length){
+      list.innerHTML = '<div class="empty">' + (calSelectedDate ? 'Tidak ada jadwal di tanggal ini.' : 'Tidak ada konten yang menunggu jadwal saat ini.') + '</div>';
+      return;
+    }
+    list.innerHTML = waiting.map(item=>`
+      <div class="item-row">
+        <div class="item-thumb">🗓</div>
+        <div class="item-body">
+          <div class="item-title">${escapeHtml(item.title)}</div>
+          <div class="item-meta">${item.platforms.join(', ')} · dijadwalkan ${item.scheduled}</div>
+        </div>
+        <div class="item-actions">
+          <button class="primary" data-action="queue-post" data-id="${item.id}">Posting Sekarang</button>
+          <button data-action="preview-queue" data-id="${item.id}">Preview</button>
+          <button data-action="queue-delete" data-id="${item.id}">Batalkan</button>
+        </div>
+      </div>`).join('');
+  }
+
+  function renderCalendar(){
+    const year = calCursor.getFullYear();
+    const month = calCursor.getMonth();
+    document.getElementById('calTitle').textContent = calCursor.toLocaleDateString('id-ID',{month:'long', year:'numeric'});
+
+    const counts = {};
+    state.queue.filter(q=>q.status === 'wait').forEach(q=>{
+      const key = isoDateOnly(q.scheduledISO);
+      if(key) counts[key] = (counts[key] || 0) + 1;
+    });
+
+    const firstDay = new Date(year, month, 1);
+    const startOffset = firstDay.getDay(); // 0=Sun
+    const daysInMonth = new Date(year, month+1, 0).getDate();
+    const todayKey = isoDateOnly(new Date().toISOString());
+
+    const dow = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+    let html = dow.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+    for(let i=0;i<startOffset;i++) html += '<div class="cal-cell empty"></div>';
+    for(let day=1; day<=daysInMonth; day++){
+      const key = year + '-' + pad2(month+1) + '-' + pad2(day);
+      const count = counts[key] || 0;
+      const isToday = key === todayKey;
+      const isSelected = key === calSelectedDate;
+      html += `<div class="cal-cell ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}" data-action="cal-select-day" data-date="${key}">
+        <span class="cal-daynum">${day}</span>
+        ${count ? `<span class="cal-count">${count}</span>` : ''}
+      </div>`;
+    }
+    document.getElementById('calGrid').innerHTML = html;
+  }
+
+  function calChangeMonth(delta){
+    calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth()+delta, 1);
+    renderCalendar();
+  }
+  function calGoToday(){
+    calCursor = new Date();
+    renderCalendar();
+  }
+  function calSelectDay(dateKey){
+    calSelectedDate = (calSelectedDate === dateKey) ? null : dateKey;
+    renderCalendar();
+    renderSchedule();
+  }
+  function calClearFilter(){
+    calSelectedDate = null;
+    renderCalendar();
+    renderSchedule();
+  }
+
+  function renderSettingsForm(){
+    document.getElementById('set-timezone').value = state.settings.timezone;
+    document.getElementById('set-theme').value = state.settings.theme || 'dark';
+    document.getElementById('set-notif').checked = !!state.settings.notif;
+    document.getElementById('set-autoretry').checked = !!state.settings.autoRetry;
+  }
+
+  function renderAll(){
+    renderPlatforms();
+    renderQueue();
+    renderActivity();
+    renderNotifications();
+    renderPool();
+    renderMedia();
+    renderTextPool();
+    renderCalendar();
+    renderSchedule();
+    renderSettingsForm();
+  }
+
+  /* ---------------- Helpers ---------------- */
+  function escapeHtml(str){
+    return String(str == null ? '' : str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function formatBytes(bytes){
+    if(!bytes && bytes !== 0) return '';
+    if(bytes < 1024) return bytes + ' B';
+    if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+    return (bytes/(1024*1024)).toFixed(1) + ' MB';
+  }
+  function formatDateTimeLocal(value){
+    if(!value) return '';
+    const d = new Date(value);
+    if(isNaN(d.getTime())) return value;
+    return d.toLocaleDateString('id-ID',{day:'numeric',month:'numeric'}) + ', ' + d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  /* ---------------- Actions: platforms ---------------- */
+  async function toggleConnect(key){
+    const p = state.platforms[key];
+    p.connected = !p.connected;
+    if(!p.connected) p.running = false;
+    addActivity(`${p.name}: akun ${p.connected ? 'dihubungkan' : 'diputus'}`, p.connected ? 'ok' : 'info');
+    await saveState();
+    renderPlatforms();
+    renderActivity();
+    toast(`${p.name} ${p.connected ? 'terhubung' : 'diputus'} sob`, p.connected ? 'ok' : null);
+  }
+
+  async function startPlatform(key){
+    const p = state.platforms[key];
+    if(!p.connected){ toast('Hubungkan akunnya dulu sob', 'err'); return; }
+    if(p.running) return;
+    p.running = true;
+    renderPlatforms();
+    setTimeout(async ()=>{
+      const success = Math.random() > 0.15;
+      p.running = false;
+      if(success){ p.success++; addActivity(`${p.name}: berhasil mengunggah konten`, 'ok'); }
+      else { p.fail++; addActivity(`${p.name}: gagal mengunggah konten`, 'err'); }
+      logPost(p.name, success ? 'ok' : 'err');
+      await saveState();
+      renderPlatforms();
+      renderActivity();
+      toast(success ? `${p.name} berhasil posting sob` : `${p.name} gagal posting`, success ? 'ok' : 'err');
+    }, 1400);
+  }
+
+  function detailPlatform(key){
+    const p = state.platforms[key];
+    const related = state.activity.filter(a=>a.text.startsWith(p.name)).slice(0,6);
+    const listHtml = related.length
+      ? related.map(a=>`<div style="padding:8px 0; border-bottom:1px solid var(--border); font-size:12.5px;"><span class="mono" style="color:var(--muted);">${a.time}</span><br>${escapeHtml(a.text)}</div>`).join('')
+      : '<div class="empty">Belum ada aktivitas untuk akun ini.</div>';
+    openModal(p.name + ' — Detail', `
+      <div class="form-group"><label>Status</label><div>${p.connected ? 'Terhubung' : 'Diputus'}${p.running ? ' · sedang mengunggah' : ''}</div></div>
+      <div class="stat-row" style="margin-bottom:16px;"><span class="ok">✓ Sukses: ${p.success}</span><span class="fail">✕ Gagal: ${p.fail}</span></div>
+      <div class="form-group"><label>Aktivitas terakhir</label>${listHtml}</div>
+    `, `<button data-action="modal-close">Tutup</button>`);
+  }
+
+  /* ---------------- Actions: platform preview ---------------- */
+  function mockupFor(platformName, opts){
+    const caption = escapeHtml(opts.caption || '');
+    const mediaInner = opts.mediaUrl
+      ? `<img src="${opts.mediaUrl}" alt="">`
+      : (opts.isVideo ? '🎬' : '🖼');
+
+    if(platformName === 'Instagram'){
+      return `<div class="mock-card">
+        <div class="mock-head"><div class="mock-avatar"></div><div class="mock-name"></div></div>
+        <div class="mock-media ratio-square">${mediaInner}</div>
+        <div class="mock-icons">♥ 💬 ↗</div>
+        <div class="mock-caption">${caption}</div>
+      </div>`;
+    }
+    if(platformName === 'TikTok'){
+      return `<div class="mock-card">
+        <div class="mock-media ratio-vertical">
+          ${mediaInner}
+          <div class="mock-overlay-caption">${caption}</div>
+          <div class="mock-side-icons"><span>♥</span><span>💬</span><span>↗</span></div>
+        </div>
+      </div>`;
+    }
+    if(platformName === 'YouTube'){
+      return `<div class="mock-card">
+        <div class="mock-media ratio-wide">${mediaInner}<div class="mock-play">▶</div></div>
+        <div class="mock-caption"><div class="mock-title">${opts.title ? escapeHtml(opts.title) : caption}</div>${opts.title ? caption : ''}</div>
+      </div>`;
+    }
+    if(platformName === 'Facebook'){
+      return `<div class="mock-card">
+        <div class="mock-head"><div class="mock-avatar"></div><div class="mock-name"></div></div>
+        <div class="mock-caption" style="padding-top:0;">${caption}</div>
+        <div class="mock-media ratio-wide">${mediaInner}</div>
+        <div class="mock-icons">👍 💬 ↗</div>
+      </div>`;
+    }
+    // Threads
+    return `<div class="mock-card">
+      <div class="mock-head"><div class="mock-avatar"></div><div class="mock-name"></div></div>
+      <div class="mock-caption">${caption}</div>
+      ${opts.mediaUrl || opts.isVideo ? `<div class="mock-media ratio-square" style="max-height:160px;">${mediaInner}</div>` : ''}
+      <div class="mock-icons">♥ 💬 ↗</div>
+    </div>`;
+  }
+
+  function openPreviewGeneric(data){
+    const html = `<div class="preview-grid">${data.platforms.map(p=>`
+      <div class="preview-block">
+        <div class="preview-block-label">${p}</div>
+        ${mockupFor(p, data)}
+      </div>`).join('')}</div>`;
+    openModal('Preview: ' + data.title, html, `<button data-action="modal-close">Tutup</button>`);
+  }
+
+  function previewQueueItem(id){
+    const item = state.queue.find(q=>q.id === id);
+    if(!item) return;
+    openPreviewGeneric({ title:item.title, platforms:item.platforms, caption:item.title, mediaUrl:null, isVideo:false });
+  }
+
+  function previewPoolItem(id){
+    const item = state.contentPool.find(p=>p.id === id);
+    if(!item) return;
+    if(!item.platforms.length){ toast('Konten ini belum punya platform tujuan sob', 'err'); return; }
+    const media = item.mediaId ? state.media.find(m=>m.id === item.mediaId) : null;
+    const textItem = item.textId ? state.text.find(t=>t.id === item.textId) : null;
+    openPreviewGeneric({
+      title: item.title,
+      platforms: item.platforms,
+      caption: textItem ? textItem.body : item.title,
+      mediaUrl: media && media.previewUrl ? media.previewUrl : null,
+      isVideo: media && media.type && media.type.startsWith('video')
+    });
+  }
+
+  /* ---------------- Actions: queue ---------------- */
+  function openAddQueue(){
+    openModal('Tambah Konten', `
+      <div class="form-group"><label>Judul Konten</label><input type="text" id="mq-title" placeholder="Judul konten..."></div>
+      <div class="form-group"><label>Platform Tujuan</label>
+        <div class="checkbox-row">
+          <label><input type="checkbox" value="YouTube"> YouTube</label>
+          <label><input type="checkbox" value="TikTok"> TikTok</label>
+          <label><input type="checkbox" value="Instagram"> Instagram</label>
+          <label><input type="checkbox" value="Facebook"> Facebook</label>
+          <label><input type="checkbox" value="Threads"> Threads</label>
+        </div>
+      </div>
+      <div class="form-group"><label>Jadwal</label><input type="datetime-local" id="mq-date"></div>
+    `, `
+      <button data-action="modal-close">Batal</button>
+      <button class="primary" data-action="save-add-queue">Simpan</button>
+    `);
+  }
+
+  async function saveAddQueue(){
+    const title = document.getElementById('mq-title').value.trim();
+    const checked = Array.from(document.querySelectorAll('#modalBody .checkbox-row input:checked')).map(c=>c.value);
+    const date = document.getElementById('mq-date').value;
+    if(!title || !checked.length){ toast('Lengkapi judul dan platform dulu sob', 'err'); return; }
+    state.queue.unshift({
+      id: uid('q'), title, platforms: checked, status:'wait',
+      scheduled: date ? formatDateTimeLocal(date) : 'Belum ditentukan',
+      scheduledISO: date || null
+    });
+    addActivity(`Konten baru ditambahkan ke antrian: "${title}"`, 'info');
+    await saveState();
+    renderQueue(); renderSchedule(); renderCalendar(); renderActivity();
+    closeModal();
+    toast('Konten tersimpan sob', 'ok');
+  }
+
+  async function queuePost(id){
+    const item = state.queue.find(q=>q.id === id);
+    if(!item) return;
+    item.status = 'done'; item.note = '';
+    item.platforms.forEach(name=>{
+      const key = PLATFORM_ORDER.find(k=>state.platforms[k].name === name);
+      if(!key) return;
+      const p = state.platforms[key];
+      if(p.connected){ p.success++; logPost(name, 'ok'); } else { p.fail++; logPost(name, 'err'); }
+    });
+    addActivity(`Berhasil diposting: "${item.title}" ke ${item.platforms.join(', ')}`, 'ok');
+    await saveState();
+    renderQueue(); renderSchedule(); renderCalendar(); renderPlatforms(); renderActivity();
+    toast('Konten diposting sob', 'ok');
+  }
+
+  async function queueDelete(id){
+    const item = state.queue.find(q=>q.id === id);
+    state.queue = state.queue.filter(q=>q.id !== id);
+    if(item) addActivity(`Konten dihapus dari antrian: "${item.title}"`, 'info');
+    await saveState();
+    renderQueue(); renderSchedule(); renderCalendar(); renderActivity();
+    toast('Dihapus sob');
+  }
+
+  function openBulkSchedule(){
+    openModal('Bulk Jadwal', `
+      <div class="form-group"><label>Judul Konten (satu per baris)</label><textarea id="mb-titles" placeholder="Judul konten 1&#10;Judul konten 2&#10;Judul konten 3"></textarea></div>
+      <div class="form-group"><label>Platform Tujuan</label>
+        <div class="checkbox-row">
+          <label><input type="checkbox" value="YouTube"> YouTube</label>
+          <label><input type="checkbox" value="TikTok"> TikTok</label>
+          <label><input type="checkbox" value="Instagram"> Instagram</label>
+          <label><input type="checkbox" value="Facebook"> Facebook</label>
+          <label><input type="checkbox" value="Threads"> Threads</label>
+        </div>
+      </div>
+      <div class="form-group"><label>Mulai Dari</label><input type="datetime-local" id="mb-start"></div>
+      <div class="form-group"><label>Jarak Antar Konten (jam)</label><input type="text" id="mb-interval" value="3"></div>
+      <div class="hint">Tiap baris judul bakal jadi satu konten terpisah, jadwalnya otomatis berjarak sesuai interval di atas.</div>
+    `, `
+      <button data-action="modal-close">Batal</button>
+      <button class="primary" data-action="save-bulk-schedule">Jadwalkan Semua</button>
+    `);
+  }
+
+  async function saveBulkSchedule(){
+    const titles = document.getElementById('mb-titles').value.split('\n').map(t=>t.trim()).filter(Boolean);
+    const checked = Array.from(document.querySelectorAll('#modalBody .checkbox-row input:checked')).map(c=>c.value);
+    const start = document.getElementById('mb-start').value;
+    const interval = parseFloat(document.getElementById('mb-interval').value) || 0;
+    if(!titles.length || !checked.length){ toast('Isi judul dan platform dulu sob', 'err'); return; }
+    if(!start){ toast('Tentukan jadwal mulai dulu sob', 'err'); return; }
+    const startDate = new Date(start);
+    titles.forEach((title, i)=>{
+      const d = new Date(startDate.getTime() + i * interval * 3600000);
+      const iso = d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+      state.queue.unshift({
+        id: uid('q'), title, platforms: checked, status:'wait',
+        scheduled: formatDateTimeLocal(iso), scheduledISO: iso
+      });
+    });
+    addActivity(`Bulk jadwal: ${titles.length} konten ditambahkan ke antrian`, 'info');
+    await saveState();
+    renderQueue(); renderSchedule(); renderCalendar(); renderActivity();
+    closeModal();
+    toast(`${titles.length} konten berhasil dijadwalkan sob`, 'ok');
+  }
+
+  /* ---------------- Actions: content pool ---------------- */
+  function openAddPool(){
+    const mediaOptions = state.media.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+    const textOptions = state.text.map(t=>`<option value="${t.id}">${escapeHtml(t.title)}</option>`).join('');
+    openModal('Tambah Konten ke Pool', `
+      <div class="form-group"><label>Judul</label><input type="text" id="mp-title" placeholder="Judul konten..."></div>
+      <div class="form-group"><label>Media (opsional)</label><select id="mp-media"><option value="">— Tidak pakai media —</option>${mediaOptions}</select>
+        ${!state.media.length ? '<div class="hint">Belum ada media. Tambahkan dulu di Media Manual.</div>' : ''}</div>
+      <div class="form-group"><label>Teks (opsional)</label><select id="mp-text"><option value="">— Tidak pakai teks —</option>${textOptions}</select>
+        ${!state.text.length ? '<div class="hint">Belum ada teks. Tambahkan dulu di Text Pool.</div>' : ''}</div>
+      <div class="form-group"><label>Platform Tujuan</label>
+        <div class="checkbox-row">
+          <label><input type="checkbox" value="YouTube"> YouTube</label>
+          <label><input type="checkbox" value="TikTok"> TikTok</label>
+          <label><input type="checkbox" value="Instagram"> Instagram</label>
+          <label><input type="checkbox" value="Facebook"> Facebook</label>
+          <label><input type="checkbox" value="Threads"> Threads</label>
+        </div>
+      </div>
+    `, `
+      <button data-action="modal-close">Batal</button>
+      <button class="primary" data-action="save-add-pool">Simpan</button>
+    `);
+  }
+
+  async function saveAddPool(){
+    const title = document.getElementById('mp-title').value.trim();
+    const mediaId = document.getElementById('mp-media').value;
+    const textId = document.getElementById('mp-text').value;
+    const checked = Array.from(document.querySelectorAll('#modalBody .checkbox-row input:checked')).map(c=>c.value);
+    if(!title){ toast('Isi judul dulu sob', 'err'); return; }
+    state.contentPool.unshift({
+      id: uid('p'), title, mediaId: mediaId || null, textId: textId || null,
+      platforms: checked, status:'draft'
+    });
+    addActivity(`Konten baru ditambahkan ke pool: "${title}"`, 'info');
+    await saveState();
+    renderPool(); renderActivity();
+    closeModal();
+    toast('Tersimpan ke pool sob', 'ok');
+  }
+
+  async function poolDelete(id){
+    const item = state.contentPool.find(p=>p.id === id);
+    state.contentPool = state.contentPool.filter(p=>p.id !== id);
+    if(item) addActivity(`Konten dihapus dari pool: "${item.title}"`, 'info');
+    await saveState();
+    renderPool(); renderActivity();
+    toast('Dihapus sob');
+  }
+
+  function poolSchedule(id){
+    const item = state.contentPool.find(p=>p.id === id);
+    if(!item) return;
+    if((item.status || 'draft') !== 'ready'){ toast('Tandai Ready dulu sob sebelum dijadwalkan', 'err'); return; }
+    openModal('Jadwalkan: ' + item.title, `
+      <div class="form-group"><label>Jadwal</label><input type="datetime-local" id="ps-date"></div>
+      <div class="hint">Platform tujuan mengikuti yang sudah diset di pool: ${item.platforms.join(', ') || '(belum ada, tambahkan minimal satu)'}</div>
+    `, `
+      <button data-action="modal-close">Batal</button>
+      <button class="primary" data-action="save-pool-schedule" data-id="${id}">Jadwalkan</button>
+    `);
+  }
+
+  async function savePoolSchedule(id){
+    const item = state.contentPool.find(p=>p.id === id);
+    if(!item) return;
+    if(!item.platforms.length){ toast('Konten ini belum punya platform tujuan sob', 'err'); return; }
+    const date = document.getElementById('ps-date').value;
+    state.queue.unshift({
+      id: uid('q'), title: item.title, platforms: item.platforms, status:'wait',
+      scheduled: date ? formatDateTimeLocal(date) : 'Belum ditentukan',
+      scheduledISO: date || null
+    });
+    addActivity(`Konten dari pool dijadwalkan: "${item.title}"`, 'info');
+    await saveState();
+    renderQueue(); renderSchedule(); renderCalendar(); renderActivity();
+    closeModal();
+    toast('Berhasil dijadwalkan sob', 'ok');
+  }
+
+  /* ---------------- Actions: media ---------------- */
+  async function handleMediaFiles(fileList){
+    const files = Array.from(fileList);
+    for(const file of files){
+      const entry = {
+        id: uid('m'), name: file.name, type: file.type || 'file', size: file.size, tag:'',
+        previewUrl: file.type && file.type.startsWith('image/') ? URL.createObjectURL(file) : null
+      };
+      state.media.unshift(entry);
+      addActivity(`Media ditambahkan: "${file.name}"`, 'info');
+    }
+    await saveState();
+    renderMedia(); renderActivity();
+    toast(files.length > 1 ? 'Media ditambahkan sob' : 'Media ditambahkan sob', 'ok');
+  }
+
+  async function mediaDelete(id){
+    const item = state.media.find(m=>m.id === id);
+    if(item && item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+    state.media = state.media.filter(m=>m.id !== id);
+    if(item) addActivity(`Media dihapus: "${item.name}"`, 'info');
+    await saveState();
+    renderMedia(); renderActivity();
+    toast('Media dihapus sob');
+  }
+
+  /* ---------------- Actions: text pool ---------------- */
+  function openAddText(existing){
+    const isEdit = !!existing;
+    openModal(isEdit ? 'Edit Teks' : 'Tambah Teks', `
+      <div class="form-group"><label>Judul</label><input type="text" id="mt-title" value="${isEdit ? escapeHtml(existing.title) : ''}" placeholder="Judul caption..."></div>
+      <div class="form-group"><label>Isi Teks</label><textarea id="mt-body" placeholder="Tulis caption di sini...">${isEdit ? escapeHtml(existing.body) : ''}</textarea></div>
+    `, `
+      <button data-action="modal-close">Batal</button>
+      <button class="primary" data-action="save-text" data-id="${isEdit ? existing.id : ''}">Simpan</button>
+    `);
+  }
+
+  async function saveText(id){
+    const title = document.getElementById('mt-title').value.trim();
+    const body = document.getElementById('mt-body').value.trim();
+    if(!title || !body){ toast('Isi judul dan teksnya dulu sob', 'err'); return; }
+    if(id){
+      const item = state.text.find(t=>t.id === id);
+      if(item){ item.title = title; item.body = body; }
+      addActivity(`Teks diperbarui: "${title}"`, 'info');
+    } else {
+      state.text.unshift({ id: uid('t'), title, body });
+      addActivity(`Teks baru ditambahkan: "${title}"`, 'info');
+    }
+    await saveState();
+    renderTextPool(); renderActivity();
+    closeModal();
+    toast('Teks tersimpan sob', 'ok');
+  }
+
+  async function textDelete(id){
+    const item = state.text.find(t=>t.id === id);
+    state.text = state.text.filter(t=>t.id !== id);
+    if(item) addActivity(`Teks dihapus: "${item.title}"`, 'info');
+    await saveState();
+    renderTextPool(); renderActivity();
+    toast('Dihapus sob');
+  }
+
+  function textCopy(id){
+    const item = state.text.find(t=>t.id === id);
+    if(!item) return;
+    const vars = extractVars(item.body);
+    if(!vars.length){
+      copyToClipboard(item.body);
+      return;
+    }
+    openModal('Isi Variabel Template', `
+      <div class="hint" style="margin-bottom:10px;">Lengkapi variabel di bawah, nanti otomatis disalin ke clipboard.</div>
+      ${vars.map(v=>`<div class="form-group"><label>{${v}}</label><input type="text" id="tv-${v}" placeholder="Isi untuk ${v}..."></div>`).join('')}
+    `, `
+      <button data-action="modal-close">Batal</button>
+      <button class="primary" data-action="save-template-fill" data-id="${id}">Salin</button>
+    `);
+  }
+
+  function saveTemplateFill(id){
+    const item = state.text.find(t=>t.id === id);
+    if(!item) return;
+    const vars = extractVars(item.body);
+    let final = item.body;
+    vars.forEach(v=>{
+      const el = document.getElementById('tv-' + v);
+      const val = el ? el.value.trim() : '';
+      final = final.split('{' + v + '}').join(val || '{' + v + '}');
+    });
+    closeModal();
+    copyToClipboard(final);
+  }
+
+  function copyToClipboard(text){
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(()=>toast('Disalin sob','ok')).catch(()=>toast('Gagal menyalin','err'));
+    } else {
+      toast('Clipboard tidak tersedia di browser ini', 'err');
+    }
+  }
+
+  /* ---------------- Actions: notifications ---------------- */
+  async function markAllNotifRead(){
+    state.notifications.forEach(n=>n.read = true);
+    await saveState();
+    renderNotifications();
+  }
+  async function markNotifRead(id){
+    const n = state.notifications.find(x=>x.id === id);
+    if(n) n.read = true;
+    await saveState();
+    renderNotifications();
+  }
+  async function dismissNotif(id){
+    state.notifications = state.notifications.filter(n=>n.id !== id);
+    await saveState();
+    renderNotifications();
+  }
+
+  /* ---------------- Actions: activity / settings ---------------- */
+  async function clearActivity(){
+    state.activity = [];
+    await saveState();
+    renderActivity();
+    toast('Riwayat dibersihkan sob');
+  }
+
+  function applyTheme(theme){
+    document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
+  }
+
+  async function updateSetting(key, value){
+    state.settings[key] = value;
+    if(key === 'theme') applyTheme(value);
+    await saveState();
+    toast('Pengaturan tersimpan sob', 'ok');
+  }
+
+  function openReset(){
+    openModal('Reset Semua Data', `
+      <div class="hint" style="font-size:13px; color:var(--text);">Yakin mau reset, sob? Semua antrian, pool, media, teks, dan riwayat aktivitas bakal kehapus dan balik ke kondisi awal. Aksi ini gak bisa dibatalin.</div>
+    `, `
+      <button data-action="modal-close">Batal</button>
+      <button class="danger-outline" data-action="confirm-reset">Ya, Reset</button>
+    `);
+  }
+
+  async function confirmReset(){
+    state.media.forEach(m=>{ if(m.previewUrl) URL.revokeObjectURL(m.previewUrl); });
+    state = defaultState();
+    poolFilter = 'all';
+    calSelectedDate = null;
+    calCursor = new Date();
+    applyTheme(state.settings.theme);
+    await saveState();
+    renderAll();
+    closeModal();
+    toast('Semua data direset sob', 'ok');
+  }
+
+  /* ---------------- Actions: export / import ---------------- */
+  function exportData(){
+    const exportable = Object.assign({}, state, {
+      media: state.media.map(m => { const c = Object.assign({}, m); delete c.previewUrl; return c; })
+    });
+    const blob = new Blob([JSON.stringify(exportable, null, 2)], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = `yuan-studio-backup-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast('Data diexport sob', 'ok');
+  }
+
+  function handleImportFile(file){
+    const reader = new FileReader();
+    reader.onload = async ()=>{
+      try{
+        const parsed = JSON.parse(reader.result);
+        const def = defaultState();
+        state.platforms = Object.assign({}, def.platforms, parsed.platforms || {});
+        state.settings = Object.assign({}, def.settings, parsed.settings || {});
+        state.queue = parsed.queue || [];
+        state.activity = parsed.activity || [];
+        state.notifications = parsed.notifications || [];
+        state.postLog = parsed.postLog || [];
+        state.contentPool = parsed.contentPool || [];
+        state.media = (parsed.media || []).map(m => { const c = Object.assign({}, m); delete c.previewUrl; return c; });
+        state.text = parsed.text || [];
+        applyTheme(state.settings.theme || 'dark');
+        addActivity('Data berhasil diimport dari file backup', 'info');
+        await saveState();
+        renderAll();
+        toast('Data berhasil diimport sob', 'ok');
+      }catch(e){
+        toast('File gak valid, gagal diimport sob', 'err');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  /* ---------------- Pulse strip (decorative) ---------------- */
+  function initPulseStrip(){
+    const strip = document.getElementById('pulseStrip');
+    for(let i=0;i<60;i++){
+      const bar = document.createElement('div');
+      bar.className = 'bar' + (Math.random() > 0.6 ? ' active' : '');
+      bar.style.animationDelay = (Math.random()*2).toFixed(2)+'s';
+      strip.appendChild(bar);
+    }
+  }
+
+  /* ---------------- Event delegation ---------------- */
+  function bindEvents(){
+    // sidebar nav
+    document.querySelectorAll('nav a[data-view]').forEach(a=>{
+      a.addEventListener('click', (e)=>{ e.preventDefault(); navigate(a.dataset.view); });
+    });
+    // sidebar account links -> jump to dashboard + flash card
+    document.querySelectorAll('#accountsNav a[data-platform]').forEach(a=>{
+      a.addEventListener('click', (e)=>{
+        e.preventDefault();
+        navigate('dashboard');
+        setTimeout(()=>{
+          const card = document.querySelector(`#platformGrid [data-card-platform="${a.dataset.platform}"]`);
+          if(card){
+            card.scrollIntoView({behavior:'smooth', block:'center'});
+            card.classList.add('flash');
+            setTimeout(()=>card.classList.remove('flash'), 900);
+          }
+        }, 50);
+      });
+    });
+
+    // media file input
+    const fileInput = document.getElementById('mediaFileInput');
+    fileInput.addEventListener('change', (e)=>{
+      if(e.target.files && e.target.files.length) handleMediaFiles(e.target.files);
+      fileInput.value = '';
+    });
+
+    // settings controls
+    document.getElementById('set-timezone').addEventListener('change', (e)=>updateSetting('timezone', e.target.value));
+    document.getElementById('set-theme').addEventListener('change', (e)=>updateSetting('theme', e.target.value));
+    document.getElementById('set-notif').addEventListener('change', (e)=>updateSetting('notif', e.target.checked));
+    document.getElementById('set-autoretry').addEventListener('change', (e)=>updateSetting('autoRetry', e.target.checked));
+
+    // search inputs
+    document.getElementById('queueSearch').addEventListener('input', (e)=>{ queueSearchTerm = e.target.value; renderQueue(); });
+    document.getElementById('activitySearch').addEventListener('input', (e)=>{ activitySearchTerm = e.target.value; renderActivity(); });
+
+    // import file input
+    const importInput = document.getElementById('importFileInput');
+    importInput.addEventListener('change', (e)=>{
+      if(e.target.files && e.target.files[0]) handleImportFile(e.target.files[0]);
+      importInput.value = '';
+    });
+
+    // delegated change events (dynamically rendered inputs)
+    document.body.addEventListener('change', (e)=>{
+      const el = e.target.closest('[data-change-action]');
+      if(!el) return;
+      if(el.dataset.changeAction === 'media-set-tag') updateMediaTag(el.dataset.id, el.value);
+    });
+
+    // close notification panel on outside click
+    document.addEventListener('click', (e)=>{
+      const widget = document.getElementById('notifWidget');
+      const panel = document.getElementById('notifPanel');
+      if(panel.classList.contains('open') && !widget.contains(e.target)){
+        panel.classList.remove('open');
+      }
+    });
+
+    // global click delegation for data-action buttons
+    document.body.addEventListener('click', (e)=>{
+      const btn = e.target.closest('[data-action]');
+      if(!btn) return;
+      const action = btn.dataset.action;
+      const platform = btn.dataset.platform;
+      const id = btn.dataset.id;
+
+      switch(action){
+        case 'toggle-connect': toggleConnect(platform); break;
+        case 'start-platform': startPlatform(platform); break;
+        case 'detail-platform': detailPlatform(platform); break;
+
+        case 'open-add-queue': openAddQueue(); break;
+        case 'save-add-queue': saveAddQueue(); break;
+        case 'queue-post': queuePost(id); break;
+        case 'queue-delete': queueDelete(id); break;
+        case 'preview-queue': previewQueueItem(id); break;
+        case 'open-bulk-schedule': openBulkSchedule(); break;
+        case 'save-bulk-schedule': saveBulkSchedule(); break;
+
+        case 'open-add-pool': openAddPool(); break;
+        case 'save-add-pool': saveAddPool(); break;
+        case 'pool-delete': poolDelete(id); break;
+        case 'pool-schedule': poolSchedule(id); break;
+        case 'save-pool-schedule': savePoolSchedule(id); break;
+        case 'pool-filter': setPoolFilter(btn.dataset.filter); break;
+        case 'pool-toggle-status': poolToggleStatus(id); break;
+        case 'preview-pool': previewPoolItem(id); break;
+
+        case 'trigger-media-upload': fileInput.click(); break;
+        case 'media-delete': mediaDelete(id); break;
+        case 'media-filter': setMediaFilter(btn.dataset.tag); break;
+
+        case 'open-add-text': openAddText(null); break;
+        case 'text-edit': openAddText(state.text.find(t=>t.id===id)); break;
+        case 'save-text': saveText(id || null); break;
+        case 'text-delete': textDelete(id); break;
+        case 'text-copy': textCopy(id); break;
+        case 'save-template-fill': saveTemplateFill(id); break;
+
+        case 'clear-activity': clearActivity(); break;
+        case 'open-reset': openReset(); break;
+        case 'confirm-reset': confirmReset(); break;
+        case 'export-data': exportData(); break;
+        case 'trigger-import': importInput.click(); break;
+
+        case 'toggle-notif-panel': document.getElementById('notifPanel').classList.toggle('open'); break;
+        case 'mark-all-read': markAllNotifRead(); break;
+        case 'notif-mark-read': markNotifRead(id); break;
+        case 'notif-dismiss': dismissNotif(id); e.stopPropagation(); break;
+
+        case 'cal-prev': calChangeMonth(-1); break;
+        case 'cal-next': calChangeMonth(1); break;
+        case 'cal-today': calGoToday(); break;
+        case 'cal-select-day': calSelectDay(btn.dataset.date); break;
+        case 'cal-clear-filter': calClearFilter(); break;
+
+        case 'modal-close': closeModal(); break;
+      }
+    });
+  }
+
+  /* ---------------- Init ---------------- */
+  async function init(){
+    await loadState();
+    applyTheme(state.settings.theme || 'dark');
+    bindEvents();
+    initPulseStrip();
+    renderAll();
+    navigate('dashboard');
+    checkReminders();
+    setInterval(checkReminders, 60000);
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>
