@@ -403,9 +403,57 @@
   }
   .mock-side-icons{ position:absolute; right:8px; bottom:10px; display:flex; flex-direction:column; gap:10px; color:#fff; font-size:16px; }
   .mock-play{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:32px; color:rgba(255,255,255,.85); }
+
+  /* Mobile sidebar toggle */
+  #sidebarToggle{ display:none; }
+  #sidebarOverlay{ display:none; }
+
+  /* Responsive */
+  @media (max-width: 860px){
+    body{ display:block; }
+    #sidebarToggle{
+      display:flex; align-items:center; justify-content:center;
+      position:fixed; top:20px; left:16px; z-index:160;
+      width:38px; height:38px; border-radius:10px;
+      background:var(--surface); border:1px solid var(--border);
+      color:var(--text); font-size:16px; cursor:pointer;
+    }
+    #notifWidget{ top:20px; right:16px; }
+    aside{
+      position:fixed; top:0; left:0; height:100vh; width:250px;
+      transform:translateX(-100%); transition:transform .25s ease;
+      z-index:155; box-shadow:0 0 40px rgba(0,0,0,.5);
+    }
+    aside.open{ transform:translateX(0); }
+    #sidebarOverlay.open{
+      display:block; position:fixed; inset:0; background:rgba(6,7,10,.55); z-index:150;
+    }
+    main{ padding:76px 16px 28px; }
+    .grid{ grid-template-columns:1fr 1fr; gap:10px; }
+    .topbar{ flex-direction:column; align-items:flex-start; gap:10px; }
+    .status-pill{ align-self:flex-start; }
+    .panel-head{ flex-direction:column; align-items:flex-start; gap:10px; }
+    .panel-head-actions{ width:100%; }
+    .search-input{ width:100%; }
+    table{ font-size:12px; }
+    th, td{ padding:8px 6px; }
+    .item-row{ flex-wrap:wrap; }
+    .item-actions{ width:100%; justify-content:flex-start; }
+    .chart-label{ width:60px; font-size:11.5px; }
+    .mock-card{ max-width:100%; }
+    .modal-box{ max-width:94vw; }
+    .cal-grid{ gap:4px; }
+    .cal-cell{ min-height:40px; padding:4px; font-size:10px; }
+  }
+  @media (max-width: 480px){
+    .grid{ grid-template-columns:1fr; }
+  }
 </style>
 </head>
 <body>
+
+<button id="sidebarToggle" aria-label="Menu">☰</button>
+<div id="sidebarOverlay"></div>
 
 <div id="notifWidget">
   <div id="notifBell" data-action="toggle-notif-panel">
@@ -506,7 +554,7 @@
         <h1>Riwayat Aktivitas</h1>
         <div class="sub">Log semua kejadian di Yuan Studio</div>
       </div>
-      <button data-action="clear-activity">Bersihkan Riwayat</button>
+      <button data-action="confirm-clear-activity">Bersihkan Riwayat</button>
     </div>
     <div class="panel">
       <input type="text" class="search-input" id="activitySearch" placeholder="Cari aktivitas..." style="margin-bottom:14px; width:100%;">
@@ -631,6 +679,14 @@
       </div>
       <div class="form-group checkbox-inline">
         <label><input type="checkbox" id="set-autoretry"> Auto-retry saat posting gagal</label>
+      </div>
+      <div class="form-group">
+        <label>Notifikasi Browser</label>
+        <div class="btn-row">
+          <button data-action="enable-browser-notif">Aktifkan Notifikasi Browser</button>
+          <span class="hint" id="browserNotifStatus" style="align-self:center;"></span>
+        </div>
+        <div class="hint">Reminder jadwal & post gagal bakal muncul sebagai notifikasi asli, walau tab ini gak lagi dibuka.</div>
       </div>
     </div>
 
@@ -792,12 +848,37 @@
     return now.toLocaleDateString('id-ID',{day:'numeric',month:'numeric'}) + ', ' + now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
   }
 
+  /* ---------------- Browser notifications ---------------- */
+  function showBrowserNotification(title, body){
+    if(typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    try{ new Notification(title, { body, icon: undefined }); }catch(e){ /* no-op */ }
+  }
+
+  function updateBrowserNotifStatus(){
+    const el = document.getElementById('browserNotifStatus');
+    if(!el) return;
+    if(typeof Notification === 'undefined'){ el.textContent = 'Gak didukung browser ini'; return; }
+    if(Notification.permission === 'granted') el.textContent = 'Aktif ✓';
+    else if(Notification.permission === 'denied') el.textContent = 'Diblokir — ubah lewat setelan browser';
+    else el.textContent = 'Belum aktif';
+  }
+
+  async function enableBrowserNotif(){
+    if(typeof Notification === 'undefined'){ toast('Browser ini gak support notifikasi native', 'err'); return; }
+    if(Notification.permission === 'granted'){ toast('Notifikasi browser udah aktif sob', 'ok'); updateBrowserNotifStatus(); return; }
+    const perm = await Notification.requestPermission();
+    updateBrowserNotifStatus();
+    if(perm === 'granted') toast('Notifikasi browser aktif sob', 'ok');
+    else toast('Izin notifikasi ditolak', 'err');
+  }
+
   function addActivity(text, level){
     const time = nowLabel();
     state.activity.unshift({ id:uid('a'), time, text, level: level || 'info' });
     if(state.activity.length > 200) state.activity.length = 200;
     if(level === 'err'){
       pushNotification(text, level, time);
+      showBrowserNotification('Yuan Studio — Gagal', text);
     }
   }
 
@@ -833,6 +914,7 @@
         const text = `Reminder: "${item.title}" dijadwalkan tayang ${label} (${item.scheduled})`;
         pushNotification(text, 'info');
         addActivity(text, 'info');
+        showBrowserNotification('Yuan Studio — Reminder Jadwal', text);
       }
     });
     if(changed){
@@ -1021,7 +1103,7 @@
           <div class="btn-row">
             ${item.status !== 'done' ? `<button class="primary" data-action="queue-post" data-id="${item.id}">Posting</button>` : ''}
             <button data-action="preview-queue" data-id="${item.id}">Preview</button>
-            <button data-action="queue-delete" data-id="${item.id}">Hapus</button>
+            <button data-action="confirm-queue-delete" data-id="${item.id}">Hapus</button>
           </div>
         </td>
       </tr>`).join('');
@@ -1074,7 +1156,7 @@
             ? `<button class="primary" data-action="pool-schedule" data-id="${item.id}">Jadwalkan</button><button data-action="pool-toggle-status" data-id="${item.id}">Jadikan Draft</button>`
             : `<button class="primary" data-action="pool-toggle-status" data-id="${item.id}">Tandai Ready</button>`}
           <button data-action="preview-pool" data-id="${item.id}">Preview</button>
-          <button data-action="pool-delete" data-id="${item.id}">Hapus</button>
+          <button data-action="confirm-pool-delete" data-id="${item.id}">Hapus</button>
         </div>
       </div>`;
     }).join('');
@@ -1117,7 +1199,7 @@
         </div>
         <input type="text" class="tag-input" data-change-action="media-set-tag" data-id="${m.id}" value="${escapeHtml(m.tag || '')}" placeholder="Kategori...">
         <div class="item-actions">
-          <button data-action="media-delete" data-id="${m.id}">Hapus</button>
+          <button data-action="confirm-media-delete" data-id="${m.id}">Hapus</button>
         </div>
       </div>`).join('');
   }
@@ -1158,7 +1240,7 @@
         <div class="item-actions">
           <button data-action="text-copy" data-id="${t.id}">${vars.length ? 'Pakai & Salin' : 'Salin'}</button>
           <button data-action="text-edit" data-id="${t.id}">Edit</button>
-          <button data-action="text-delete" data-id="${t.id}">Hapus</button>
+          <button data-action="confirm-text-delete" data-id="${t.id}">Hapus</button>
         </div>
       </div>`;
     }).join('');
@@ -1192,7 +1274,7 @@
         <div class="item-actions">
           <button class="primary" data-action="queue-post" data-id="${item.id}">Posting Sekarang</button>
           <button data-action="preview-queue" data-id="${item.id}">Preview</button>
-          <button data-action="queue-delete" data-id="${item.id}">Batalkan</button>
+          <button data-action="confirm-queue-delete" data-id="${item.id}">Batalkan</button>
         </div>
       </div>`).join('');
   }
@@ -1253,6 +1335,7 @@
     document.getElementById('set-theme').value = state.settings.theme || 'dark';
     document.getElementById('set-notif').checked = !!state.settings.notif;
     document.getElementById('set-autoretry').checked = !!state.settings.autoRetry;
+    updateBrowserNotifStatus();
   }
 
   function renderAll(){
@@ -1283,6 +1366,10 @@
     const d = new Date(value);
     if(isNaN(d.getTime())) return value;
     return d.toLocaleDateString('id-ID',{day:'numeric',month:'numeric'}) + ', ' + d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+  }
+  function nowLocalInputValue(){
+    const d = new Date();
+    return d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
   }
 
   /* ---------------- Actions: platforms ---------------- */
@@ -1419,7 +1506,7 @@
           <label><input type="checkbox" value="Threads"> Threads</label>
         </div>
       </div>
-      <div class="form-group"><label>Jadwal</label><input type="datetime-local" id="mq-date"></div>
+      <div class="form-group"><label>Jadwal</label><input type="datetime-local" id="mq-date" min="${nowLocalInputValue()}"></div>
     `, `
       <button data-action="modal-close">Batal</button>
       <button class="primary" data-action="save-add-queue">Simpan</button>
@@ -1431,6 +1518,7 @@
     const checked = Array.from(document.querySelectorAll('#modalBody .checkbox-row input:checked')).map(c=>c.value);
     const date = document.getElementById('mq-date').value;
     if(!title || !checked.length){ toast('Lengkapi judul dan platform dulu sob', 'err'); return; }
+    if(date && new Date(date).getTime() < Date.now()){ toast('Jadwal gak boleh di masa lalu sob', 'err'); return; }
     state.queue.unshift({
       id: uid('q'), title, platforms: checked, status:'wait',
       scheduled: date ? formatDateTimeLocal(date) : 'Belum ditentukan',
@@ -1465,6 +1553,7 @@
     if(item) addActivity(`Konten dihapus dari antrian: "${item.title}"`, 'info');
     await saveState();
     renderQueue(); renderSchedule(); renderCalendar(); renderActivity();
+    closeModal();
     toast('Dihapus sob');
   }
 
@@ -1480,7 +1569,7 @@
           <label><input type="checkbox" value="Threads"> Threads</label>
         </div>
       </div>
-      <div class="form-group"><label>Mulai Dari</label><input type="datetime-local" id="mb-start"></div>
+      <div class="form-group"><label>Mulai Dari</label><input type="datetime-local" id="mb-start" min="${nowLocalInputValue()}"></div>
       <div class="form-group"><label>Jarak Antar Konten (jam)</label><input type="text" id="mb-interval" value="3"></div>
       <div class="hint">Tiap baris judul bakal jadi satu konten terpisah, jadwalnya otomatis berjarak sesuai interval di atas.</div>
     `, `
@@ -1496,6 +1585,7 @@
     const interval = parseFloat(document.getElementById('mb-interval').value) || 0;
     if(!titles.length || !checked.length){ toast('Isi judul dan platform dulu sob', 'err'); return; }
     if(!start){ toast('Tentukan jadwal mulai dulu sob', 'err'); return; }
+    if(new Date(start).getTime() < Date.now()){ toast('Jadwal mulai gak boleh di masa lalu sob', 'err'); return; }
     const startDate = new Date(start);
     titles.forEach((title, i)=>{
       const d = new Date(startDate.getTime() + i * interval * 3600000);
@@ -1560,6 +1650,7 @@
     if(item) addActivity(`Konten dihapus dari pool: "${item.title}"`, 'info');
     await saveState();
     renderPool(); renderActivity();
+    closeModal();
     toast('Dihapus sob');
   }
 
@@ -1568,7 +1659,7 @@
     if(!item) return;
     if((item.status || 'draft') !== 'ready'){ toast('Tandai Ready dulu sob sebelum dijadwalkan', 'err'); return; }
     openModal('Jadwalkan: ' + item.title, `
-      <div class="form-group"><label>Jadwal</label><input type="datetime-local" id="ps-date"></div>
+      <div class="form-group"><label>Jadwal</label><input type="datetime-local" id="ps-date" min="${nowLocalInputValue()}"></div>
       <div class="hint">Platform tujuan mengikuti yang sudah diset di pool: ${item.platforms.join(', ') || '(belum ada, tambahkan minimal satu)'}</div>
     `, `
       <button data-action="modal-close">Batal</button>
@@ -1581,6 +1672,7 @@
     if(!item) return;
     if(!item.platforms.length){ toast('Konten ini belum punya platform tujuan sob', 'err'); return; }
     const date = document.getElementById('ps-date').value;
+    if(date && new Date(date).getTime() < Date.now()){ toast('Jadwal gak boleh di masa lalu sob', 'err'); return; }
     state.queue.unshift({
       id: uid('q'), title: item.title, platforms: item.platforms, status:'wait',
       scheduled: date ? formatDateTimeLocal(date) : 'Belum ditentukan',
@@ -1616,6 +1708,7 @@
     if(item) addActivity(`Media dihapus: "${item.name}"`, 'info');
     await saveState();
     renderMedia(); renderActivity();
+    closeModal();
     toast('Media dihapus sob');
   }
 
@@ -1655,6 +1748,7 @@
     if(item) addActivity(`Teks dihapus: "${item.title}"`, 'info');
     await saveState();
     renderTextPool(); renderActivity();
+    closeModal();
     toast('Dihapus sob');
   }
 
@@ -1720,6 +1814,7 @@
     state.activity = [];
     await saveState();
     renderActivity();
+    closeModal();
     toast('Riwayat dibersihkan sob');
   }
 
@@ -1732,6 +1827,13 @@
     if(key === 'theme') applyTheme(value);
     await saveState();
     toast('Pengaturan tersimpan sob', 'ok');
+  }
+
+  function confirmDangerous(action, id, message){
+    openModal('Konfirmasi', `<div style="font-size:13px; color:var(--text);">${message}</div>`, `
+      <button data-action="modal-close">Batal</button>
+      <button class="danger-outline" data-action="${action}" data-id="${id || ''}">Ya, Hapus</button>
+    `);
   }
 
   function openReset(){
@@ -1814,15 +1916,26 @@
 
   /* ---------------- Event delegation ---------------- */
   function bindEvents(){
+    // mobile sidebar toggle
+    const asideEl = document.querySelector('aside');
+    const overlayEl = document.getElementById('sidebarOverlay');
+    function closeSidebar(){ asideEl.classList.remove('open'); overlayEl.classList.remove('open'); }
+    document.getElementById('sidebarToggle').addEventListener('click', ()=>{
+      asideEl.classList.toggle('open');
+      overlayEl.classList.toggle('open');
+    });
+    overlayEl.addEventListener('click', closeSidebar);
+
     // sidebar nav
     document.querySelectorAll('nav a[data-view]').forEach(a=>{
-      a.addEventListener('click', (e)=>{ e.preventDefault(); navigate(a.dataset.view); });
+      a.addEventListener('click', (e)=>{ e.preventDefault(); navigate(a.dataset.view); closeSidebar(); });
     });
     // sidebar account links -> jump to dashboard + flash card
     document.querySelectorAll('#accountsNav a[data-platform]').forEach(a=>{
       a.addEventListener('click', (e)=>{
         e.preventDefault();
         navigate('dashboard');
+        closeSidebar();
         setTimeout(()=>{
           const card = document.querySelector(`#platformGrid [data-card-platform="${a.dataset.platform}"]`);
           if(card){
@@ -1874,6 +1987,23 @@
       }
     });
 
+    // keyboard shortcuts
+    document.addEventListener('keydown', (e)=>{
+      const typingInField = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName);
+      if(e.key === 'Escape'){
+        if(document.getElementById('modalOverlay').classList.contains('open')){ closeModal(); return; }
+        if(document.getElementById('notifPanel').classList.contains('open')){ document.getElementById('notifPanel').classList.remove('open'); return; }
+        if(asideEl.classList.contains('open')){ closeSidebar(); return; }
+      }
+      if(e.key === '/' && !typingInField){
+        const activeView = document.querySelector('.view.active');
+        if(!activeView) return;
+        const target = activeView.id === 'view-dashboard' ? document.getElementById('queueSearch')
+          : activeView.id === 'view-activity' ? document.getElementById('activitySearch') : null;
+        if(target){ e.preventDefault(); target.focus(); }
+      }
+    });
+
     // global click delegation for data-action buttons
     document.body.addEventListener('click', (e)=>{
       const btn = e.target.closest('[data-action]');
@@ -1891,6 +2021,7 @@
         case 'save-add-queue': saveAddQueue(); break;
         case 'queue-post': queuePost(id); break;
         case 'queue-delete': queueDelete(id); break;
+        case 'confirm-queue-delete': confirmDangerous('queue-delete', id, 'Yakin mau hapus/batalkan konten ini dari antrian?'); break;
         case 'preview-queue': previewQueueItem(id); break;
         case 'open-bulk-schedule': openBulkSchedule(); break;
         case 'save-bulk-schedule': saveBulkSchedule(); break;
@@ -1898,6 +2029,7 @@
         case 'open-add-pool': openAddPool(); break;
         case 'save-add-pool': saveAddPool(); break;
         case 'pool-delete': poolDelete(id); break;
+        case 'confirm-pool-delete': confirmDangerous('pool-delete', id, 'Yakin mau hapus konten ini dari pool?'); break;
         case 'pool-schedule': poolSchedule(id); break;
         case 'save-pool-schedule': savePoolSchedule(id); break;
         case 'pool-filter': setPoolFilter(btn.dataset.filter); break;
@@ -1906,20 +2038,24 @@
 
         case 'trigger-media-upload': fileInput.click(); break;
         case 'media-delete': mediaDelete(id); break;
+        case 'confirm-media-delete': confirmDangerous('media-delete', id, 'Yakin mau hapus media ini?'); break;
         case 'media-filter': setMediaFilter(btn.dataset.tag); break;
 
         case 'open-add-text': openAddText(null); break;
         case 'text-edit': openAddText(state.text.find(t=>t.id===id)); break;
         case 'save-text': saveText(id || null); break;
         case 'text-delete': textDelete(id); break;
+        case 'confirm-text-delete': confirmDangerous('text-delete', id, 'Yakin mau hapus teks ini?'); break;
         case 'text-copy': textCopy(id); break;
         case 'save-template-fill': saveTemplateFill(id); break;
 
         case 'clear-activity': clearActivity(); break;
+        case 'confirm-clear-activity': confirmDangerous('clear-activity', null, 'Yakin mau membersihkan semua riwayat aktivitas? Aksi ini gak bisa dibatalin.'); break;
         case 'open-reset': openReset(); break;
         case 'confirm-reset': confirmReset(); break;
         case 'export-data': exportData(); break;
         case 'trigger-import': importInput.click(); break;
+        case 'enable-browser-notif': enableBrowserNotif(); break;
 
         case 'toggle-notif-panel': document.getElementById('notifPanel').classList.toggle('open'); break;
         case 'mark-all-read': markAllNotifRead(); break;
