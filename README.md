@@ -26,6 +26,7 @@ Dashboard manajemen konten & penjadwalan posting untuk YouTube, TikTok, Instagra
 - **Grafik performa** sukses/gagal per platform
 - **Rekomendasi waktu posting terbaik** berdasarkan histori
 - **Notifikasi in-app** (bell icon) untuk kejadian gagal & reminder H-1 jam sebelum jadwal tayang
+- **Notifikasi browser asli** — reminder & kegagalan posting muncul sebagai notifikasi OS/browser, walau tab gak lagi dibuka (perlu izin, diaktifkan lewat Pengaturan)
 - **Riwayat Aktivitas** lengkap dengan search
 
 ### Pengaturan & Data
@@ -33,6 +34,12 @@ Dashboard manajemen konten & penjadwalan posting untuk YouTube, TikTok, Instagra
 - Reset semua data
 - Dark/Light mode toggle
 - Preferensi zona waktu, notifikasi, auto-retry
+
+### Pengalaman Pengguna
+- **Responsive mobile** — sidebar off-canvas dengan tombol hamburger di layar kecil, layout otomatis menyesuaikan
+- **Konfirmasi sebelum hapus** — semua aksi hapus (antrian, pool, media, teks, riwayat) minta konfirmasi dulu
+- **Keyboard shortcut** — `Esc` menutup modal/panel, `/` fokus ke kotak pencarian
+- **Validasi jadwal** — gak bisa memilih tanggal/waktu di masa lalu saat menjadwalkan konten
 
 ## 🛠️ Tech Stack
 
